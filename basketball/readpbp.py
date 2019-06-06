@@ -381,7 +381,6 @@ subs = pbp_relevant.loc[pbp_relevant['Event_Msg_Type'] == 8]
 #now lets see what the operations
 #%%
 
-playersin.loc[suboutindex,'opts']
 #%%
 pbp_relevant.groupby('Team_id')
 
@@ -395,7 +394,7 @@ def possession_flag(z):
     
     Creates a flag as to whether or not this is the end of a possession. 
     
-    
+    Continue to clean this according  to their rules. 
     
     """
     
@@ -403,6 +402,11 @@ def possession_flag(z):
         if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]:
             return 1
     if z['Event_Msg_Type'] == 1:
+        return 1
+
+    if z['Event_Msg_Type'] == 5:
+        return 1
+    if z['Event_Msg_Type'] == 4:
         return 1
     return 0
 
