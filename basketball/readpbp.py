@@ -366,11 +366,10 @@ for game_num in range(len(sample_games))[0:1]:
             playersin, bench = sub(playersin, bench, row)  #calculate +/- of subout.
         #    playersin, suboutindex,score = sub(playersin, bench, row)  #calculate +/- of subout.
         elif (row['Event_Msg_Type'] == 13):
-            i+=1
+           # i+=1
     
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
-            if i > 7:
-                break
+
 
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
