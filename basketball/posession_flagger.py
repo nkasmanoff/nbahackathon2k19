@@ -11,6 +11,11 @@ and use this in order to create a running total of possessions a player is in a 
 
 
 
+. A possession is ended by (1) made field goal attempts, (2) made final free throw attempt, (3) missed final free throw attempt that results in a defensive rebound, (4) missed field goal attempt that results in a defensive rebound, (5) turnover, or (6) end of time period.
+
+
+
+Note. Putback rebounds (offensive ones) are currently not sorted. 
 """
 
 import pandas as pd
@@ -130,20 +135,49 @@ for game_num in range(len(sample_games))[0:1]:
     subs_correct = substitution_correction(subs,starting_lineup)
     pbp_relevant[subsmask] =  subs_correct #fixes substitutions, and cofnirms taem names are correct. 
     subs = pbp_relevant[subsmask] 
-    pbp_relevant = pbp_relevant.sort_values(['Period','PC_Time','WC_Time','Event_Num'],
-        ascending=[True,False,True,True])
-    
+    pbp_relevant = pbp_relevant.sort_values(['Period','PC_Time','Option1','WC_Time','Event_Num'],
+        ascending=[True,False,True,True,True])
+  #  pbp_singlegame = pbp_singlegame.sort_values(['Period','PC_Time','Option1','WC_Time','Event_Num'],
+   #     ascending=[True,False,True,True,True])
+  
+    pbp_singlegame= pbp_singlegame.sort_values(['Event_Num'],
+        ascending=[True])
+        
     
 #%%
 
-#from fda work. Rather than in shortage, is a rebound, or team id. Change in team id will signify new possession. 
-#this certainly won't be the silve bullet just yet. 
-def make_shortage_IDS(g):
-    features = ['Drug','Ingredient','Treatment Area']
-    for feature in features:
-        g[feature + ' Shortage #'] = ((g[feature + ' in Shortage?'] != 1) | (g[feature + ' in Shortage?'].shift(1) != 1)).cumsum()
-    return g
+#pbp_relevant['score'] = pbp_relevant.groupby('Team_id', axis = 0,sort=False)['Option1'].cumsum()
+pbp_singlegame['Poss Change 1'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 1 else False)
+pbp_singlegame['Poss Change 2'] =     
+pbp_singlegame['Poss Change 4'] = ((pbp_singlegame['Team_id'] != pbp_singlegame['Team_id'].shift(-1)) & (pbp_singlegame['Event_Msg_Type_Description'].str.contains('Rebound')))
+
+pbp_singlegame['Poss Change 5'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 5 else False)
 
 
 
-panel_df = pd.concat([get_maxmedmin(make_shortage_IDS(get_CM(g))) for _,g in panel_df.groupby('Drug_Index')])
+def freethrowexceptions(z):
+        if z['Event_Msg_Type'] == 3:
+            if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]: #if final free throw
+                if z['Option1'] == 1  #made final free throw. 
+                    return True
+                
+                # if option 1 not equal to 1, it was missed. 
+                #so the posssession continues, in which case the rules in place already capture this. 
+                    #otherwise, it's in, and return. 
+                    
+                    #now
+#pbp_singlegame['New Possession?'] = ((pbp_singlegame['Team_id'] != pbp_singlegame['Team_id'].shift(-1)) & (pbp_singlegame['Event_Msg_Type_Description'] == 'Rebound'))
+
+#pbp_singlegame['Possession ID'] = (pbp_singlegame['Team_id'] != pbp_singlegame['Team_id'].shift(1)).cumsum() 
+
+#pbp_singlegame['New Possession?'] = pbp_singlegame['New Possession?'].apply(lambda z: 1 if z else 0)
+#if the team changes. 
+
+#pbp_singlegame.drop_duplicates(subset = ['Possession #'],keep='last',inplace=True)
+#pbp_singlegame['teampossessionss'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['New Possession?'].cumsum()
+
+
+pbp_viewer = pbp_singlegame.drop(columns =['Game_id','Person1','Person2','Person3',
+                                           'Person1_type','Person2_type','Person3_type'])
+
+#%% 

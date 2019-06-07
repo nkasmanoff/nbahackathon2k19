@@ -295,7 +295,7 @@ sample_games = pbp['Game_id'].unique()
 ######Loop and test sub function here ######
 i = 0
 
-for game_num in range(len(sample_games))[0:1]:
+for game_num in range(len(sample_games))[11:12]:
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
     lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
     codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
