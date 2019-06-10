@@ -15,9 +15,9 @@ and use this in order to create a running total of possessions a player is in a 
 
 
 
-Note. Putback rebounds (offensive ones) are currently not sorted. 
 """
 
+#%%
 import pandas as pd
 import numpy as np
 import warnings
@@ -90,6 +90,202 @@ def substitution_correction(subs,lineup):
     corrected_subs = subs
     return corrected_subs
 
+
+def sub(playersin, bench, substitution):
+    """Function to calculate plus/minus for individuals when they subout
+    and calculate difference when subbing in.
+
+    Parameters
+    ----------
+
+    playersin : df
+        dataframe of players on the court, has columns 'Team_id', 'Person_id', diffin
+        and 'pm'
+
+    bench : df
+        dataframe of players on the bench, has columns 'Team_id', 'Person_id', diffin
+        and 'pm'
+
+    substitution : df
+        a single row from the play-by-play dataframe for which the substitution occurs
+        Event Msg Type: 8
+
+    Returns :
+    playersin, bench
+    -------
+    """
+
+    teamid = substitution['Team_id']
+    print('teamid',teamid)
+    suboutID = substitution['Person1']
+    subinID = substitution['Person2']
+    score1 = substitution['score_x']
+    score2 = substitution['score_y']
+    if teamid == teams[0]:
+        diff = score1 - score2
+        opts = score1
+        dpts = score2
+    else:
+        diff = score2 - score1
+        opts = score2
+        dpts = score1
+        
+    suboutindex = (playersin['Person_id'] == suboutID)
+
+    # calculates plus minus of the player at the subout index. 
+    playersin.loc[suboutindex,'pm'] = playersin.loc[suboutindex,'pm']     + diff - playersin.loc[suboutindex,'diffin']
+    #maybe an if statement for this being the first time being subbed out? 
+    playersin.loc[suboutindex,'opts'] = playersin.loc[suboutindex,'opts']     + opts -  playersin.loc[suboutindex,'plusin']
+    playersin.loc[suboutindex,'dpts'] = playersin.loc[suboutindex,'dpts']     + dpts -  playersin.loc[suboutindex,'minusin']
+
+   # return playersin, suboutindex,score
+    if ~bench['Person_id'].str.contains(subinID).any(): # if the player isn't in the "bench" df, which is means the player was subbed out. 
+                                                        
+            playersin = playersin.append(
+            {'Team_id': teamid, 'Person_id':subinID, 'diffin':diff, 'pm':0,'plusin':0,'opts':0,'minusin':0,'dpts':0},
+            ignore_index = True)   #initializes that player as 0s
+                    
+    else: # if he's in the benchdf already, 
+        playersin = playersin.append(bench.loc[bench['Person_id'] == subinID])
+        bench = bench.loc[~(bench['Person_id'] == subinID)]
+        
+    bench = bench.append(playersin.loc[playersin['Person_id'] == suboutID]) #now bench is appended with this player and his updated 
+    playersin = playersin.loc[~(playersin['Person_id'] == suboutID)]
+
+    # set the score difference for new player
+    playersin.loc[playersin['Person_id'] == subinID, 'diffin'] = diff
+    playersin.loc[playersin['Person_id'] == subinID, 'plusin'] = opts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
+    playersin.loc[playersin['Person_id'] == subinID, 'minusin'] = dpts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
+
+
+    return playersin, bench
+
+
+
+def startperiod(playersin, bench, startrow):
+    """ 
+    
+    Function to switch out players at the start of the period
+    and calculate the score difference coming in
+
+    Parameters
+    ----------
+
+    playersin : df
+        dataframe of players on the court, has columns 'Team_id', 'Person_id', diffin
+        and 'pm'
+
+    bench : df
+        dataframe of players on the bench, has columns 'Team_id', 'Person_id', diffin
+        and 'pm'
+
+    startrow : df
+        a single row from the play-by-play dataframe for which the start of the period occurs
+        Event Msg Type: 12
+
+    Returns 
+    -------
+
+    playersin, bench
+    """
+
+    score1 = startrow['score_x']
+    score2 = startrow['score_y']
+    diff = score1 - score2
+    period = startrow['Period']
+
+    # identify who is coming in at the start of the period
+    periodstarters = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == period)]
+    allplayers = pd.concat([bench, playersin])
+
+    # allocate players going in and those on the bench
+    playersintemp = pd.concat([
+            playersin.loc[playersin['Person_id'].isin(periodstarters['Person_id'])], \
+            bench.loc[bench['Person_id'].isin(periodstarters['Person_id'])]
+        ])
+    benchtemp = pd.concat([
+            bench.loc[~bench['Person_id'].isin(periodstarters['Person_id'])], \
+            playersin.loc[~playersin['Person_id'].isin(periodstarters['Person_id'])]
+        ])
+
+    playersin = playersintemp
+    bench = benchtemp
+
+    # check to see if there are players first coming in at the start of the period
+    check = periodstarters['Person_id'].isin(allplayers['Person_id'])
+    if ~check.all():
+        newplayers = periodstarters.loc[~check]
+        for index,newplayer in newplayers.iterrows():
+            playersin = playersin.append(
+                {'Team_id': newplayer['Team_id'],
+                 'Person_id': newplayer['Person_id'],
+                 'diffin':0,
+                 'pm':0,
+                 'plusin':0,
+                 'opts':0,
+                 'minusin':0,
+                 'dpts':0},
+                ignore_index = True)
+
+    # set the score difference for all players at the start of the period
+    playersin.loc[playersin['Team_id'] == teams[0],'diffin'] = diff
+    playersin.loc[playersin['Team_id'] == teams[1],'diffin'] = -diff
+    
+    playersin.loc[playersin['Team_id'] == teams[0],'plusin'] = score1
+    playersin.loc[playersin['Team_id'] == teams[1],'plusin'] = score2
+    
+    playersin.loc[playersin['Team_id'] == teams[0],'minusin'] = score2
+    playersin.loc[playersin['Team_id'] == teams[1],'minusin'] = score1
+
+    return playersin, bench
+
+
+def endperiod(playersin, bench, endrow):
+    """ Function to calculate the plus minus for everyone at the end of the period
+
+    Parameters
+    ----------
+
+    playersin : df
+        dataframe of players on the court, has columns 'Team_id', 'Person_id', diffin
+        and 'pm'
+
+    bench : df
+        dataframe of players on the bench, has columns 'Team_id', 'Person_id', diffin
+        and 'pm'
+
+    startrow : df
+        a single row from the play-by-play dataframe for which the start of the period occurs
+        Event Msg Type: 12
+
+    Returns :
+    playersin, bench
+    -------
+    
+    """
+
+    score1 = endrow['score_x']
+    score2 = endrow['score_y']
+    diff = score1 - score2
+    
+    # calculate plus minus for everyone at the end of the period
+    playersin.loc[playersin['Team_id'] == teams[0], 'pm']  = playersin.loc[playersin['Team_id'] == teams[0],'pm']  + diff - playersin.loc[playersin['Team_id'] == teams[0],'diffin']
+    playersin.loc[playersin['Team_id'] == teams[1], 'pm']  = playersin.loc[playersin['Team_id'] == teams[1],'pm']  - diff - playersin.loc[playersin['Team_id'] == teams[1],'diffin']
+       # 
+    playersin.loc[playersin['Team_id'] == teams[0], 'opts']  = playersin.loc[playersin['Team_id'] == teams[0],'opts']  +score1 - playersin.loc[playersin['Team_id'] == teams[0],'plusin']
+    playersin.loc[playersin['Team_id'] == teams[0], 'dpts']  = playersin.loc[playersin['Team_id'] == teams[0],'dpts']  +score2 - playersin.loc[playersin['Team_id'] == teams[0],'minusin']
+
+    playersin.loc[playersin['Team_id'] == teams[1], 'opts']  = playersin.loc[playersin['Team_id'] == teams[1],'opts']  +score2- playersin.loc[playersin['Team_id'] == teams[1],'plusin']
+    playersin.loc[playersin['Team_id'] == teams[1], 'dpts']  = playersin.loc[playersin['Team_id'] == teams[1],'dpts']  +score1 - playersin.loc[playersin['Team_id'] == teams[1],'minusin']
+
+   # playersin.loc[playersin['Team_id'] == teams[0],'opts'] = playersin.loc[playersin['Team_id'] == teams[0],'opts'] # + score1 - playersin.loc[playersin['Team_id'] == teams[0],'opts']
+   # playersin.loc[playersin['Team_id'] == teams[1],'opts'] = playersin.loc[playersin['Team_id'] == teams[1],'opts'] + score2  - playersin.loc[playersin['Team_id'] == teams[1],'opts']
+    #return playersin,
+    return playersin, bench
+
+
+
+#%%
 
 #load in data. 
 pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
@@ -171,7 +367,9 @@ for game_num in range(len(sample_games))[0:1]:
     pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 5, 'Option1'] = 0
     pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 6, 'Option1'] = 0
 
+
     pbp_singlegame['score'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Option1'].cumsum()
+    pbp_singlegame['possessions'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Poss Change'].cumsum()
 
 
 
