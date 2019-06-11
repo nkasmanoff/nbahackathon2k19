@@ -17,47 +17,16 @@ import pandas as pd
 import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
-#%%
 
-# coding: utf-8
-
-# In[1]:
-
-import pandas as pd
-import numpy as np
-
-pd.set_option('display.max_rows', 500)
-
-
-def fix_subs(pbp,lineups):
-    """
-
-Team_id – in most scenarios, this is the Team_id associated with the Person1 column. However, there are instances when this is not the case. To
- 
-accurately and consistently identify a player’s team, we suggest merging with the Game_Lineup dataset on the Person1 and Person2 columns.
-    
-    """
-    
-    del pbp['Team_id'] #remove team id, let's assume it's entirely incorrect. 
-    pbp.rename(columns = {'Person1':'Person_id'},inplace=True)
-    
-    pbp = pbp.merge(lineups[['Game_id','Person_id','Team_id']],on=['Game_id','Person_id'],how='left',indicator=True)
-    still_missing = pbp[pbp['_merge'] == 'left_only'].copy()
-    del still_missing['_merge'],still_missing['Person_id'] 
-    still_missing.rename(columns = {'Person2':'Person_id'},inplace=True)
-    still_missing = still_missing.merge(lineups[['Game_id','Person_id','Team_id']],on=['Game_id','Person_id'],how='left',indicator=True)
-    pbp[pbp['_merge'] == 'left_only'] = still_missing
-#
-    return pbp
 
 
 
 def substitution_correction(subs,lineup):
     """
     
-    Team_id – in most scenarios, this is the Team_id associated with the Person1 column. However, there are instances when this is not the case. To
- 
-    accurately and consistently identify a player’s team, we suggest merging with the Game_Lineup dataset on the Person1 and Person2 columns.
+    Go through a game dataframe. Correct and confirm that the
+    substitution team assignments are correct.
+
     Parameters
     ----------
 
@@ -111,6 +80,123 @@ def substitution_correction(subs,lineup):
     return corrected_subs
 
 
+def freethrowexceptions(z):
+    """Apply statement to encode end of a possession for free throws. 
+    The tricky case here is confirm this is the final free throw attempt, and if it did not go in. 
+    
+    In other cases the other possession change flags will capture the end of the possession, 
+    but this does.
+    
+    """
+    
+    if z['Event_Msg_Type'] == 3:
+        if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]: #if final free throw
+                
+            if z['Option1'] == 1 and z['Action_Type_Description'].split(' ')[-1] != '1':
+                    #made final free throw. 
+                    return True
+      
+    
+    return False
+
+
+def possession_flagger(pbp_singlegame):
+    """
+    
+    Flags the end of a possession as designated by the rules for this question, and creates a counter similar
+    to the one for points scored of each team, denoting the total # of possessions that team has 
+    throughout the game. 
+    
+    Parameters
+    ----------
+    
+    pbp_singlegame : dataframe
+        Pandas dataframe of the play by play of the game, already slightly modified. 
+        
+    Returns
+    -------
+    
+    pbp_singlegame : dataframe
+        Pandas dataframe of the play by play of the game, even more modified such that the possesions of each team is now
+        attached. 
+    
+    
+    """
+    #first, sort according to event num, have to do this for possessions, but not other stuff. 
+    pbp_singlegame.sort_values(['Event_Num'],
+        ascending=[True],inplace=True)
+        
+    
+    #create new column for each type of possession change, combine at the end. 
+    pbp_singlegame['Poss Change 1'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 1 else False)
+    pbp_singlegame['Poss Change Rebound'] = ((pbp_singlegame['Team_id'] != pbp_singlegame['Team_id'].shift(-1)) & (pbp_singlegame['Event_Msg_Type_Description'].str.contains('Rebound')))   
+    pbp_singlegame['Poss Change 5'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 5 else False)
+    pbp_singlegame['Poss Change 13'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 13 else False)
+    pbp_singlegame['Poss Change 6'] = pbp_singlegame.apply(lambda z: freethrowexceptions(z),axis=1)
+    
+    #merge all those possession change types together. 
+    pbp_singlegame['Poss Change'] = pbp_singlegame[pbp_singlegame.columns[-5:]].sum(axis=1)
+    pbp_singlegame.drop(columns = pbp_singlegame.columns[-6:-1],inplace=True)
+   # return pbp_singlegame
+    pbp_singlegame.sort_values(['Period','PC_Time','Option1','WC_Time','Event_Num'],
+            ascending=[True,False,True,True,True],inplace=True)
+    
+    pbp_singlegame['npossessions'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Poss Change'].cumsum()
+
+    team1npossessions = pbp_singlegame.loc[pbp_singlegame.iloc[:,10] == teams[0]]
+    team2npossessions = pbp_singlegame.loc[pbp_singlegame.iloc[:,10] == teams[1]]
+    del pbp_singlegame['npossessions'] #this is because it copies, don't do this. 
+    
+    pbp_singlegame = pd.merge(pbp_singlegame, team1npossessions.loc[:,['Event_Num','npossessions']], on = 'Event_Num', how = 'left')
+    pbp_singlegame = pd.merge(pbp_singlegame, team2npossessions.loc[:,['Event_Num','npossessions']], on = 'Event_Num', how = 'left')
+
+    # fill forward for NaNs
+    pbp_singlegame.loc[:,['npossessions_x', 'npossessions_y']] = pbp_singlegame.loc[:,['npossessions_x', 'npossessions_y']].fillna(method = 'ffill')
+    pbp_singlegame.loc[:,['npossessions_x', 'npossessions_y']] = pbp_singlegame.loc[:,['npossessions_x', 'npossessions_y']].fillna(0) # for the start of the game
+    return pbp_singlegame
+
+
+def score_aggregator(pbp_singlegame):
+    """
+    
+    Aggregates the score of the game. 
+
+    Parameters
+    ----------
+    
+    pbp_singlegame : dataframe
+        Pandas dataframe of the play by play of the game. 
+        
+    Returns
+    -------
+    
+    pbp_singlegame : dataframe
+        Pandas dataframe of the play by play of the game, even more modified such that the score of each team is now
+        attached. 
+    
+        
+    """
+    
+    #first, make all non-scoring plays have their option 1 value equal 0. This is the value corresponding to made points anyway. 
+    
+    pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 3)&(pbp_singlegame['Option1'] != 1), 'Option1'] = 0
+    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 2, 'Option1'] = 0
+    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 5, 'Option1'] = 0
+    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 6, 'Option1'] = 0
+    
+    pbp_singlegame['score'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Option1'].cumsum()
+    team1score = pbp_singlegame.loc[pbp_singlegame.iloc[:,10] == teams[0]]
+    team2score = pbp_singlegame.loc[pbp_singlegame.iloc[:,10] == teams[1]]
+    del pbp_singlegame['score'] #this is because it copies, don't do this. 
+    
+    pbp_singlegame = pd.merge(pbp_singlegame, team1score.loc[:,['Event_Num','score']], on = 'Event_Num', how = 'left')
+    pbp_singlegame = pd.merge(pbp_singlegame, team2score.loc[:,['Event_Num','score']], on = 'Event_Num', how = 'left')
+
+    # fill forward for NaNs
+    pbp_singlegame.loc[:,['score_x', 'score_y']] = pbp_singlegame.loc[:,['score_x', 'score_y']].fillna(method = 'ffill')
+    pbp_singlegame.loc[:,['score_x', 'score_y']] = pbp_singlegame.loc[:,['score_x', 'score_y']].fillna(0) # for the start of the game
+    
+    return pbp_singlegame
 
 def sub(playersin, bench, substitution):
     """
@@ -216,6 +302,7 @@ def startperiod(playersin, bench, startrow):
     score2 = startrow['score_y']
     diff = score1 - score2
     period = startrow['Period']
+
     # identify who is coming in at the start of the period
     periodstarters = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == period)]
     allplayers = pd.concat([bench, playersin])
@@ -263,9 +350,7 @@ def startperiod(playersin, bench, startrow):
 
 
 def endperiod(playersin, bench, endrow):
-    """ 
-    
-    Function to calculate the plus minus for everyone at the end of the period
+    """ Function to calculate the plus minus for everyone at the end of the period
 
     Parameters
     ----------
@@ -309,16 +394,14 @@ def endperiod(playersin, bench, endrow):
 
 
 
-#%%
 
+#%%
 #load in data. 
 pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
 lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
 codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
 
 sample_games = pbp['Game_id'].unique()
-######Loop and test sub function here ######
-i = 0
 
 for game_num in range(len(sample_games))[0:1]:
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
@@ -341,58 +424,98 @@ for game_num in range(len(sample_games))[0:1]:
     
 
     #retain every event that is a made shot
-    pbp_relevant = pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 1) |
-        (pbp_singlegame['Event_Msg_Type'] == 3) | (pbp_singlegame['Event_Msg_Type'] == 8) |
-        (pbp_singlegame['Event_Msg_Type'] == 12) | (pbp_singlegame['Event_Msg_Type'] == 13)]
-    
-   # pbp_singlegame = fix_subs(pbp_singlegame,lineup)
+    #delete this extraneous col
+   # del pbp_singlegame['Action_Type_Description']
     
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game)] #starting lineup of the game
     
-    subsmask = pbp_relevant['Event_Msg_Type'] == 8
-    subs = pbp_relevant[subsmask] #dataframe of all substitutions. 
+    subsmask = pbp_singlegame['Event_Msg_Type'] == 8
+    subs = pbp_singlegame[subsmask] #dataframe of all substitutions. 
     
     
     playersin = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 1),['Team_id','Person_id']])
     subs_correct = substitution_correction(subs,starting_lineup)
-    pbp_relevant[subsmask] =  subs_correct #fixes substitutions, and cofnirms taem names are correct. 
-    subs = pbp_relevant[subsmask] 
-    pbp_relevant = pbp_relevant.sort_values(['Event_Num','PC_Time','WC_Time','Event_Num'],
-       ascending=[True,False,True,True])
+    pbp_singlegame[subsmask] =  subs_correct #fixes substitutions, and cofnirms taem names are correct. 
+    subs = pbp_singlegame[subsmask] 
+    pbp_singlegame = pbp_singlegame.sort_values(['Period','PC_Time','WC_Time','Event_Num'],
+        ascending=[True,False,True,True])
     
-
+    pbp_singlegame = possession_flagger(pbp_singlegame)
+    pbp_singlegame = score_aggregator(pbp_singlegame)
+    
     #Initialize point differential both game and players for the dataset. 
     playersin['diffin'] = playersin['pm'] = playersin['plusin'] = playersin['opts'] = 0
     playersin['minusin'] = playersin['dpts'] =0
     bench = pd.DataFrame(columns = ['Team_id', 'Person_id', 'diffin', 'pm','plusin','opts','minusin','dpts'])
-
-    pbp_relevant.loc[(pbp_relevant['Event_Msg_Type'] == 3)&(pbp_relevant['Option1'] != 1), 'Option1'] = 0
-    pbp_relevant['score'] = pbp_relevant.groupby('Team_id', axis = 0,sort=False)['Option1'].cumsum()
-    team1score = pbp_relevant.loc[pbp_relevant.iloc[:,10] == teams[0]]
-    team2score = pbp_relevant.loc[pbp_relevant.iloc[:,10] == teams[1]]
-    del pbp_relevant['score'] #this is because it copies, don't do this. 
-    
-    pbp_relevant = pd.merge(pbp_relevant, team1score.loc[:,['Event_Num','score']], on = 'Event_Num', how = 'left')
-    pbp_relevant = pd.merge(pbp_relevant, team2score.loc[:,['Event_Num','score']], on = 'Event_Num', how = 'left')
-
-    # fill forward for NaNs
-    pbp_relevant.loc[:,['score_x', 'score_y']] = pbp_relevant.loc[:,['score_x', 'score_y']].fillna(method = 'ffill')
-    pbp_relevant.loc[:,['score_x', 'score_y']] = pbp_relevant.loc[:,['score_x', 'score_y']].fillna(0) # for the start of the game
-    del team1score, team2score
-    pbp_relevant.dropna(subset = ['Period'],inplace=True)
-    for index, row in pbp_relevant.iterrows():
+    #
+    for index, row in pbp_singlegame.iterrows():
        # print()
        # print(index,row)
         if (row['Event_Msg_Type'] == 8):
             playersin, bench = sub(playersin, bench, row)  #calculate +/- of subout.
+        #    playersin, suboutindex,score = sub(playersin, bench, row)  #calculate +/- of subout.
         elif (row['Event_Msg_Type'] == 13):
+           # i+=1
+    
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
+
+
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
-            
-pm = pd.concat([playersin,bench])
+
+
+
 #%%
 
-pm = pd.concat([playersin,bench])
+pbp_singlegame = possession_flagger(pbp_singlegame)
+pbp_singlegame = score_aggregator(pbp_singlegame)
+
+
+#%%
+    pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 3)&(pbp_singlegame['Option1'] != 1), 'Option1'] = 0
+    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 2, 'Option1'] = 0
+    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 5, 'Option1'] = 0
+    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 6, 'Option1'] = 0
+
+    pbp_singlegame['score'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Option1'].cumsum()
+
+
+
+#%%
+def possession_flag(z):
+    """
+    
+    Creates a flag as to whether or not this is the end of a possession. 
+    
+    Continue to clean this according  to their rules. 
+    
+    """
+    
+    if z['Event_Msg_Type'] == 3:
+        if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]:
+            return 1
+    if z['Event_Msg_Type'] == 1:
+        return 1
+
+    if z['Event_Msg_Type'] == 5:
+        return 1
+    if z['Event_Msg_Type'] == 4:
+        return 1
+    return 0
+
+pbp_singlegame['End of Possession?'] = pbp_singlegame.apply(lambda z: possession_flag(z),axis=1)
+    
+
+#%%
+
+#So what ends a possession? 
+#event message type 1 made shot
+
+# 3  - made free throw, if x of x. 
+
+# any 5  turnover
+
+# 8 - substitution, but for that player only, others are still part of that possesion. 
+    
