@@ -198,6 +198,7 @@ def score_aggregator(pbp_singlegame):
     
     return pbp_singlegame
 
+
 def sub(playersin, bench, substitution):
     """
     
@@ -231,20 +232,23 @@ def sub(playersin, bench, substitution):
     score1 = substitution['score_x']
     score2 = substitution['score_y']
     
-    nposs1 = substitution['npossessions_y'] +1
-    nposs2 = substitution['npossessions_y'] + 1
+    offensive_nposs1 = substitution['npossessions_x'] +1
+    offensive_nposs2 = substitution['npossessions_y'] + 1
 
     if teamid == teams[0]:
         diff = score1 - score2
         opts = score1
         dpts = score2
-        nposs = nposs1
+        offensive_nposs = offensive_nposs1
+        defensive_nposs = offensive_nposs2
+
     else:
         diff = score2 - score1
         opts = score2
         dpts = score1
-        nposs = nposs2
-        
+        offensive_nposs = offensive_nposs2
+        defensive_nposs = offensive_nposs1
+
     suboutindex = (playersin['Person_id'] == suboutID)
 
     # calculates plus minus of the player at the subout index. 
@@ -252,13 +256,15 @@ def sub(playersin, bench, substitution):
     #maybe an if statement for this being the first time being subbed out? 
     playersin.loc[suboutindex,'opts'] = playersin.loc[suboutindex,'opts']     + opts -  playersin.loc[suboutindex,'plusin']
     playersin.loc[suboutindex,'dpts'] = playersin.loc[suboutindex,'dpts']     + dpts -  playersin.loc[suboutindex,'minusin']
-    playersin.loc[suboutindex,'nposs'] = playersin.loc[suboutindex,'nposs']     + nposs -  playersin.loc[suboutindex,'possin']
-   # return playersin, suboutindex,score
+    playersin.loc[suboutindex,'offensive_nposs'] = playersin.loc[suboutindex,'offensive_nposs']     + offensive_nposs -  playersin.loc[suboutindex,'off_possin']
+    playersin.loc[suboutindex,'defensive_nposs'] = playersin.loc[suboutindex,'defensive_nposs']     + defensive_nposs -  playersin.loc[suboutindex,'def_possin']
+
     if ~bench['Person_id'].str.contains(subinID).any(): # if the player isn't in the "bench" df, which is means the player was subbed out. 
                                                         
             playersin = playersin.append(
             {'Team_id': teamid, 'Person_id':subinID, 'diffin':diff, 'pm':0,
-             'plusin':0,'opts':0,'minusin':0,'dpts':0,'possin':0,'nposs':0},
+             'plusin':0,'opts':0,'minusin':0,'dpts':0,'off_possin':0,'offensive_nposs':0,
+            'def_possin':0,'defensive_nposs':0},
             ignore_index = True)   #initializes that player as 0s
                     
     else: # if he's in the benchdf already, 
@@ -272,7 +278,8 @@ def sub(playersin, bench, substitution):
     playersin.loc[playersin['Person_id'] == subinID, 'diffin'] = diff
     playersin.loc[playersin['Person_id'] == subinID, 'plusin'] = opts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
     playersin.loc[playersin['Person_id'] == subinID, 'minusin'] = dpts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
-    playersin.loc[playersin['Person_id'] == subinID, 'possin'] = nposs #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
+    playersin.loc[playersin['Person_id'] == subinID, 'off_possin'] = offensive_nposs #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
+    playersin.loc[playersin['Person_id'] == subinID, 'def_possin'] = defensive_nposs #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
 
 
     return playersin, bench
@@ -308,8 +315,8 @@ def startperiod(playersin, bench, startrow):
 
     score1 = startrow['score_x']
     score2 = startrow['score_y']
-    nposs1 = startrow['npossessions_x']
-    nposs2 = startrow['npossessions_y']
+    offensive_nposs1 = startrow['npossessions_x']
+    offensive_nposs2 = startrow['npossessions_y']
     diff = score1 - score2
     period = startrow['Period']
 
@@ -344,8 +351,10 @@ def startperiod(playersin, bench, startrow):
                  'opts':0,
                  'minusin':0,
                  'dpts':0,
-                 'possin':0,
-                 'nposs':0},
+                 'off_possin':0,
+                 'offensive_nposs':0,
+                'def_possin':0,
+                'defensive_nposs':0},
                 ignore_index = True)
 
     # set the score difference for all players at the start of the period
@@ -358,9 +367,11 @@ def startperiod(playersin, bench, startrow):
     playersin.loc[playersin['Team_id'] == teams[0],'minusin'] = score2
     playersin.loc[playersin['Team_id'] == teams[1],'minusin'] = score1
     
-    playersin.loc[playersin['Team_id'] == teams[0],'possin'] = nposs1
-    playersin.loc[playersin['Team_id'] == teams[1],'possin'] = nposs2  
+    playersin.loc[playersin['Team_id'] == teams[0],'off_possin'] = offensive_nposs1
+    playersin.loc[playersin['Team_id'] == teams[1],'off_possin'] = offensive_nposs2  
 
+    playersin.loc[playersin['Team_id'] == teams[0],'def_possin'] = offensive_nposs2
+    playersin.loc[playersin['Team_id'] == teams[1],'def_possin'] = offensive_nposs1  
 
 
     return playersin, bench
@@ -393,8 +404,8 @@ def endperiod(playersin, bench, endrow):
     score1 = endrow['score_x']
     score2 = endrow['score_y']
     
-    nposs1 = endrow['npossessions_x']
-    nposs2 = endrow['npossessions_y']
+    offensive_nposs1 = endrow['npossessions_x']
+    offensive_nposs2 = endrow['npossessions_y']
     
     diff = score1 - score2
     
@@ -409,15 +420,13 @@ def endperiod(playersin, bench, endrow):
     playersin.loc[playersin['Team_id'] == teams[1], 'dpts']  = playersin.loc[playersin['Team_id'] == teams[1],'dpts']  +score1 - playersin.loc[playersin['Team_id'] == teams[1],'minusin']
 
 
-    playersin.loc[playersin['Team_id'] == teams[0], 'nposs']  = playersin.loc[playersin['Team_id'] == teams[0],'nposs']  + nposs1 - playersin.loc[playersin['Team_id'] == teams[0],'possin']
-    playersin.loc[playersin['Team_id'] == teams[1], 'nposs']  = playersin.loc[playersin['Team_id'] == teams[1],'nposs']  + nposs2 - playersin.loc[playersin['Team_id'] == teams[1],'possin']
-       # 
-
-   # playersin.loc[playersin['Team_id'] == teams[0],'opts'] = playersin.loc[playersin['Team_id'] == teams[0],'opts'] # + score1 - playersin.loc[playersin['Team_id'] == teams[0],'opts']
-   # playersin.loc[playersin['Team_id'] == teams[1],'opts'] = playersin.loc[playersin['Team_id'] == teams[1],'opts'] + score2  - playersin.loc[playersin['Team_id'] == teams[1],'opts']
-    #return playersin,
+    playersin.loc[playersin['Team_id'] == teams[0], 'offensive_nposs']  = playersin.loc[playersin['Team_id'] == teams[0],'offensive_nposs']  + offensive_nposs1 - playersin.loc[playersin['Team_id'] == teams[0],'off_possin']
+    playersin.loc[playersin['Team_id'] == teams[1], 'offensive_nposs']  = playersin.loc[playersin['Team_id'] == teams[1],'offensive_nposs']  + offensive_nposs2 - playersin.loc[playersin['Team_id'] == teams[1],'off_possin']
+   
+    playersin.loc[playersin['Team_id'] == teams[0], 'defensive_nposs']  = playersin.loc[playersin['Team_id'] == teams[0],'defensive_nposs']  + offensive_nposs2 - playersin.loc[playersin['Team_id'] == teams[0],'def_possin']
+    playersin.loc[playersin['Team_id'] == teams[1], 'defensive_nposs']  = playersin.loc[playersin['Team_id'] == teams[1],'defensive_nposs']  + offensive_nposs1 - playersin.loc[playersin['Team_id'] == teams[1],'def_possin']
+       
     return playersin, bench
-
 
 
 
@@ -441,19 +450,12 @@ for game_num in range(len(sample_games))[0:1]:
     
     
     #sort according to this, it may end up changing . 
-    pbp_singlegame = pbp.loc[pbp['Game_id'] == sample_games[game_num]] #.sort_values(['Period','PC_Time','WC_Time','Event_Num'],
-       # ascending=[True,False,True,True])
+    pbp_singlegame = pbp.loc[pbp['Game_id'] == sample_games[game_num]] 
     
     #translate using codes
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
     
-
-    #retain every event that is a made shot
-    #delete this extraneous col
-   # del pbp_singlegame['Action_Type_Description']
-    
-
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game)] #starting lineup of the game
     
@@ -473,27 +475,26 @@ for game_num in range(len(sample_games))[0:1]:
     
     #Initialize point differential both game and players for the dataset. 
     playersin['diffin'] = playersin['pm'] = playersin['plusin'] = playersin['opts'] = 0
-    playersin['minusin'] = playersin['dpts'] = playersin['nposs'] = playersin['possin'] =0
-    bench = pd.DataFrame(columns = ['Team_id', 'Person_id', 'diffin', 'pm','plusin','opts','minusin','dpts','possin','nposs'])
+    playersin['minusin'] = playersin['dpts'] = playersin['offensive_nposs'] = playersin['off_possin'] =0
+    playersin['defensive_nposs'] = playersin['def_possin'] = 0
+    bench = pd.DataFrame(columns = ['Team_id', 'Person_id', 'diffin', 'pm','plusin','opts','minusin','dpts','off_possin','offensive_nposs','def_possin','defensive_nposs'])
     #
     for index, row in pbp_singlegame.iterrows():
-       # print()
-       # print(index,row)
         if (row['Event_Msg_Type'] == 8):
             playersin, bench = sub(playersin, bench, row)  #calculate +/- of subout.
-        #    playersin, suboutindex,score = sub(playersin, bench, row)  #calculate +/- of subout.
         elif (row['Event_Msg_Type'] == 13):
-           # i+=1
-    
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
-
-
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
 
+pm = pd.concat([playersin,bench],axis=0)#[['Person_id','Team_id','pm','opts','dpts','offensive_nposs','defensive_nposs']]
 
 
-pm = pd.concat([playersin,bench],axis=0)[['Person_id','Team_id','pm','opts','dpts','nposs']]
+box_score_ratings = pd.DataFrame()
+box_score_ratings['Person_id'] = pm['Person_id']
+box_score_ratings['Team_id'] = pm['Team_id']
 
+box_score_ratings['ORTG'] = 100 * pm['opts'] / pm['offensive_nposs']
+box_score_ratings['DRTG'] = 100 * pm['dpts'] / pm['defensive_nposs']
 
 #%%
