@@ -394,5 +394,3 @@ for game_num in range(len(sample_games))[0:1]:
             
 pm = pd.concat([playersin,bench])
 #%%
-
-pm = pd.concat([playersin,bench])

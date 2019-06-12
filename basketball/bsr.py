@@ -11,14 +11,14 @@ Contained in this script is the collection of total # of offensive points scored
 The next step is to generalize this for defensive points allowed while on the court, and make an additional counter for 
 possessions to have occured. 
 
+
+This is wrong, but right. 
+
 """
 
 import pandas as pd
-import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
-
-
 
 
 def substitution_correction(subs,lineup):
@@ -230,14 +230,20 @@ def sub(playersin, bench, substitution):
     subinID = substitution['Person2']
     score1 = substitution['score_x']
     score2 = substitution['score_y']
+    
+    nposs1 = substitution['npossessions_y'] +1
+    nposs2 = substitution['npossessions_y'] + 1
+
     if teamid == teams[0]:
         diff = score1 - score2
         opts = score1
         dpts = score2
+        nposs = nposs1
     else:
         diff = score2 - score1
         opts = score2
         dpts = score1
+        nposs = nposs2
         
     suboutindex = (playersin['Person_id'] == suboutID)
 
@@ -246,12 +252,13 @@ def sub(playersin, bench, substitution):
     #maybe an if statement for this being the first time being subbed out? 
     playersin.loc[suboutindex,'opts'] = playersin.loc[suboutindex,'opts']     + opts -  playersin.loc[suboutindex,'plusin']
     playersin.loc[suboutindex,'dpts'] = playersin.loc[suboutindex,'dpts']     + dpts -  playersin.loc[suboutindex,'minusin']
-
+    playersin.loc[suboutindex,'nposs'] = playersin.loc[suboutindex,'nposs']     + nposs -  playersin.loc[suboutindex,'possin']
    # return playersin, suboutindex,score
     if ~bench['Person_id'].str.contains(subinID).any(): # if the player isn't in the "bench" df, which is means the player was subbed out. 
                                                         
             playersin = playersin.append(
-            {'Team_id': teamid, 'Person_id':subinID, 'diffin':diff, 'pm':0,'plusin':0,'opts':0,'minusin':0,'dpts':0},
+            {'Team_id': teamid, 'Person_id':subinID, 'diffin':diff, 'pm':0,
+             'plusin':0,'opts':0,'minusin':0,'dpts':0,'possin':0,'nposs':0},
             ignore_index = True)   #initializes that player as 0s
                     
     else: # if he's in the benchdf already, 
@@ -265,6 +272,7 @@ def sub(playersin, bench, substitution):
     playersin.loc[playersin['Person_id'] == subinID, 'diffin'] = diff
     playersin.loc[playersin['Person_id'] == subinID, 'plusin'] = opts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
     playersin.loc[playersin['Person_id'] == subinID, 'minusin'] = dpts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
+    playersin.loc[playersin['Person_id'] == subinID, 'possin'] = nposs #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
 
 
     return playersin, bench
@@ -300,6 +308,8 @@ def startperiod(playersin, bench, startrow):
 
     score1 = startrow['score_x']
     score2 = startrow['score_y']
+    nposs1 = startrow['npossessions_x']
+    nposs2 = startrow['npossessions_y']
     diff = score1 - score2
     period = startrow['Period']
 
@@ -333,7 +343,9 @@ def startperiod(playersin, bench, startrow):
                  'plusin':0,
                  'opts':0,
                  'minusin':0,
-                 'dpts':0},
+                 'dpts':0,
+                 'possin':0,
+                 'nposs':0},
                 ignore_index = True)
 
     # set the score difference for all players at the start of the period
@@ -345,6 +357,11 @@ def startperiod(playersin, bench, startrow):
     
     playersin.loc[playersin['Team_id'] == teams[0],'minusin'] = score2
     playersin.loc[playersin['Team_id'] == teams[1],'minusin'] = score1
+    
+    playersin.loc[playersin['Team_id'] == teams[0],'possin'] = nposs1
+    playersin.loc[playersin['Team_id'] == teams[1],'possin'] = nposs2  
+
+
 
     return playersin, bench
 
@@ -375,6 +392,10 @@ def endperiod(playersin, bench, endrow):
 
     score1 = endrow['score_x']
     score2 = endrow['score_y']
+    
+    nposs1 = endrow['npossessions_x']
+    nposs2 = endrow['npossessions_y']
+    
     diff = score1 - score2
     
     # calculate plus minus for everyone at the end of the period
@@ -386,6 +407,11 @@ def endperiod(playersin, bench, endrow):
 
     playersin.loc[playersin['Team_id'] == teams[1], 'opts']  = playersin.loc[playersin['Team_id'] == teams[1],'opts']  +score2- playersin.loc[playersin['Team_id'] == teams[1],'plusin']
     playersin.loc[playersin['Team_id'] == teams[1], 'dpts']  = playersin.loc[playersin['Team_id'] == teams[1],'dpts']  +score1 - playersin.loc[playersin['Team_id'] == teams[1],'minusin']
+
+
+    playersin.loc[playersin['Team_id'] == teams[0], 'nposs']  = playersin.loc[playersin['Team_id'] == teams[0],'nposs']  + nposs1 - playersin.loc[playersin['Team_id'] == teams[0],'possin']
+    playersin.loc[playersin['Team_id'] == teams[1], 'nposs']  = playersin.loc[playersin['Team_id'] == teams[1],'nposs']  + nposs2 - playersin.loc[playersin['Team_id'] == teams[1],'possin']
+       # 
 
    # playersin.loc[playersin['Team_id'] == teams[0],'opts'] = playersin.loc[playersin['Team_id'] == teams[0],'opts'] # + score1 - playersin.loc[playersin['Team_id'] == teams[0],'opts']
    # playersin.loc[playersin['Team_id'] == teams[1],'opts'] = playersin.loc[playersin['Team_id'] == teams[1],'opts'] + score2  - playersin.loc[playersin['Team_id'] == teams[1],'opts']
@@ -447,8 +473,8 @@ for game_num in range(len(sample_games))[0:1]:
     
     #Initialize point differential both game and players for the dataset. 
     playersin['diffin'] = playersin['pm'] = playersin['plusin'] = playersin['opts'] = 0
-    playersin['minusin'] = playersin['dpts'] =0
-    bench = pd.DataFrame(columns = ['Team_id', 'Person_id', 'diffin', 'pm','plusin','opts','minusin','dpts'])
+    playersin['minusin'] = playersin['dpts'] = playersin['nposs'] = playersin['possin'] =0
+    bench = pd.DataFrame(columns = ['Team_id', 'Person_id', 'diffin', 'pm','plusin','opts','minusin','dpts','possin','nposs'])
     #
     for index, row in pbp_singlegame.iterrows():
        # print()
@@ -467,55 +493,7 @@ for game_num in range(len(sample_games))[0:1]:
 
 
 
-#%%
-
-pbp_singlegame = possession_flagger(pbp_singlegame)
-pbp_singlegame = score_aggregator(pbp_singlegame)
+pm = pd.concat([playersin,bench],axis=0)[['Person_id','Team_id','pm','opts','dpts','nposs']]
 
 
 #%%
-    pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 3)&(pbp_singlegame['Option1'] != 1), 'Option1'] = 0
-    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 2, 'Option1'] = 0
-    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 5, 'Option1'] = 0
-    pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 6, 'Option1'] = 0
-
-    pbp_singlegame['score'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Option1'].cumsum()
-
-
-
-#%%
-def possession_flag(z):
-    """
-    
-    Creates a flag as to whether or not this is the end of a possession. 
-    
-    Continue to clean this according  to their rules. 
-    
-    """
-    
-    if z['Event_Msg_Type'] == 3:
-        if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]:
-            return 1
-    if z['Event_Msg_Type'] == 1:
-        return 1
-
-    if z['Event_Msg_Type'] == 5:
-        return 1
-    if z['Event_Msg_Type'] == 4:
-        return 1
-    return 0
-
-pbp_singlegame['End of Possession?'] = pbp_singlegame.apply(lambda z: possession_flag(z),axis=1)
-    
-
-#%%
-
-#So what ends a possession? 
-#event message type 1 made shot
-
-# 3  - made free throw, if x of x. 
-
-# any 5  turnover
-
-# 8 - substitution, but for that player only, others are still part of that possesion. 
-    
