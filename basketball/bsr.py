@@ -262,17 +262,17 @@ def sub(playersin, bench, substitution):
     playersin.loc[suboutindex,'offensive_nposs'] = playersin.loc[suboutindex,'offensive_nposs']     + offensive_nposs -  playersin.loc[suboutindex,'off_possin']
     playersin.loc[suboutindex,'defensive_nposs'] = playersin.loc[suboutindex,'defensive_nposs']     + defensive_nposs -  playersin.loc[suboutindex,'def_possin']
 
-    if ~bench['Person_id'].str.contains(subinID).any(): # if the player isn't in the "bench" df, which is means the player was subbed out. 
+   # if ~bench['Person_id'].str.contains(subinID).any(): # if the player isn't in the "bench" df, which is means the player was subbed out. 
                                                         
-            playersin = playersin.append(
-            {'Team_id': teamid, 'Person_id':subinID, 'diffin':diff, 'pm':0,
-             'plusin':0,'opts':0,'minusin':0,'dpts':0,'off_possin':0,'offensive_nposs':0,
-            'def_possin':0,'defensive_nposs':0},
-            ignore_index = True)   #initializes that player as 0s
+    #        playersin = playersin.append(
+    #        {'Team_id': teamid, 'Person_id':subinID, 'diffin':diff, 'pm':0,
+     #        'plusin':0,'opts':0,'minusin':0,'dpts':0,'off_possin':0,'offensive_nposs':0,
+     #       'def_possin':0,'defensive_nposs':0},
+     #       ignore_index = True)   #initializes that player as 0s
                     
-    else: # if he's in the benchdf already, 
-        playersin = playersin.append(bench.loc[bench['Person_id'] == subinID])
-        bench = bench.loc[~(bench['Person_id'] == subinID)]
+   # else: # if he's in the benchdf already, 
+    playersin = playersin.append(bench.loc[bench['Person_id'] == subinID])
+    bench = bench.loc[~(bench['Person_id'] == subinID)]
         
     bench = bench.append(playersin.loc[playersin['Person_id'] == suboutID]) #now bench is appended with this player and his updated 
     playersin = playersin.loc[~(playersin['Person_id'] == suboutID)]
@@ -322,7 +322,7 @@ def startperiod(playersin, bench, startrow):
     offensive_nposs2 = startrow['npossessions_y']
     diff = score1 - score2
     period = startrow['Period']
-
+    print("Period: ", period)
     # identify who is coming in at the start of the period
     periodstarters = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == period)]
     allplayers = pd.concat([bench, playersin])
@@ -439,8 +439,11 @@ pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
 lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
 codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
 
+box_score_ratings = pd.DataFrame()
 
-for game in pbp['Game_id'].unique()[0:1]:
+for game in pbp['Game_id'].unique():
+    
+  #  game  = '3ce947db2df86b08a40b7526e2faaccb'  #finals game where lebron plays the whole time. s
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
     lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
     codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
@@ -458,7 +461,7 @@ for game in pbp['Game_id'].unique()[0:1]:
     
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game)] #starting lineup of the game
-    
+   # print("Starters" , starting_lineup.loc[starting_lineup['Person_id'] == 'fbcda0bcb861e4726ca8871b8965ede4'])
     subsmask = pbp_singlegame['Event_Msg_Type'] == 8
     subs = pbp_singlegame[subsmask] #dataframe of all substitutions. 
     
@@ -487,15 +490,15 @@ for game in pbp['Game_id'].unique()[0:1]:
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
 
-pm = pd.concat([playersin,bench],axis=0)#[['Person_id','Team_id','pm','opts','dpts','offensive_nposs','defensive_nposs']]
+    pm = pd.concat([playersin,bench],axis=0)#[['Person_id','Team_id','pm','opts','dpts','offensive_nposs','defensive_nposs']]
+    pm['Game_id'] = game
 
+    box_score_ratings = box_score_ratings.append(pm)
+#%%
+box_score_ratings['ORTG'] = 100 * box_score_ratings['opts'] / box_score_ratings['offensive_nposs']
+box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
 
-box_score_ratings = pd.DataFrame()
-box_score_ratings['Person_id'] = pm['Person_id']
-box_score_ratings['Team_id'] = pm['Team_id']
-
-box_score_ratings['ORTG'] = 100 * pm['opts'] / pm['offensive_nposs']
-box_score_ratings['DRTG'] = 100 * pm['dpts'] / pm['defensive_nposs']
-box_score_ratings['Game_id'] = game
+box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORTG','DRTG']]
 #%%
 
+lebron = starting_lineup.loc[starting_lineup['Person_id'] == 'fbcda0bcb861e4726ca8871b8965ede4']
