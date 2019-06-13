@@ -254,7 +254,10 @@ pbp_singlegame.columns
 
 pbp_viewer = pbp_singlegame[['Team_id_type','Event_Msg_Type_Description',
        'Action_Type_Description','npossessions_x',
-       'npossessions_y', 'score_x', 'score_y']]
+       'npossessions_y', 'score_x', 'score_y','Poss Change','Period']]
 
 pbp_viewer.rename(columns = {'npossessions_x':'MIN_nposs','score_x':'MIN_score',
                              'npossessions_y':'HOU_nposs','score_y':'HOU_score'},inplace=True)
+    
+    
+#%%

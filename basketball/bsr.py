@@ -51,6 +51,7 @@ def substitution_correction(subs,lineup):
     del lineup['Period'],lineup['status'],lineup['Game_id']
     del subs['Team_id']
     
+    
     first = pd.merge(subs, lineup,
         on = ['Person1'], how = 'left')
     first.drop_duplicates(inplace=True)
@@ -81,7 +82,9 @@ def substitution_correction(subs,lineup):
 
 
 def freethrowexceptions(z):
-    """Apply statement to encode end of a possession for free throws. 
+    """
+    
+    Apply statement to encode end of a possession for free throws. 
     The tricky case here is confirm this is the final free throw attempt, and if it did not go in. 
     
     In other cases the other possession change flags will capture the end of the possession, 
@@ -436,21 +439,18 @@ pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
 lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
 codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
 
-sample_games = pbp['Game_id'].unique()
 
-for game_num in range(len(sample_games))[0:1]:
+for game in pbp['Game_id'].unique()[0:1]:
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
     lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
     codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
 
-    game = sample_games[game_num] # for now, not iterative.
     print("game id: ", game)
-    print("game num: ",game_num)
     teams = lineup.loc[lineup['Game_id'] == game]['Team_id'].unique() #locate the two teams in the game. 
     
     
     #sort according to this, it may end up changing . 
-    pbp_singlegame = pbp.loc[pbp['Game_id'] == sample_games[game_num]] 
+    pbp_singlegame = pbp.loc[pbp['Game_id'] == game] 
     
     #translate using codes
     pbp_singlegame = pbp_singlegame.merge( codes,
@@ -496,5 +496,6 @@ box_score_ratings['Team_id'] = pm['Team_id']
 
 box_score_ratings['ORTG'] = 100 * pm['opts'] / pm['offensive_nposs']
 box_score_ratings['DRTG'] = 100 * pm['dpts'] / pm['defensive_nposs']
-
+box_score_ratings['Game_id'] = game
 #%%
+
