@@ -468,12 +468,12 @@ for game in pbp['Game_id'].unique()[0:1]:
    # print("Starters" , starting_lineup.loc[starting_lineup['Person_id'] == 'fbcda0bcb861e4726ca8871b8965ede4'])
     subsmask = pbp_singlegame['Event_Msg_Type'] == 8
     subs = pbp_singlegame[subsmask] #dataframe of all substitutions. 
-    
+    print(sum(subsmask))
     
     playersin = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 1),['Team_id','Person_id']])
     
     bench = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 0) ,['Team_id','Person_id']])  #all players associated with a game. 
-
+    bench = bench[~bench['Person_id'].isin(playersin['Person_id'])]
     subs_correct = substitution_correction(subs,starting_lineup)
     
     pbp_singlegame[subsmask] =  subs_correct
@@ -489,11 +489,16 @@ for game in pbp['Game_id'].unique()[0:1]:
     playersin['diffin'] = playersin['pm'] = playersin['plusin'] = playersin['opts'] = 0
     playersin['minusin'] = playersin['dpts'] = playersin['offensive_nposs'] = playersin['off_possin'] =0
     playersin['defensive_nposs'] = playersin['def_possin'] = 0
+    
+    bench['diffin'] = bench['pm'] = bench['plusin'] = bench['opts'] = 0
+    bench['minusin'] = bench['dpts'] = bench['offensive_nposs'] = bench['off_possin'] = 0
+    bench['defensive_nposs'] = bench['def_possin'] = 0
     bench = pd.DataFrame(columns = ['Team_id', 'Person_id', 'diffin', 'pm','plusin','opts','minusin','dpts','off_possin','offensive_nposs','def_possin','defensive_nposs'])
     #
     for index, row in pbp_singlegame.iterrows():
         if (row['Event_Msg_Type'] == 8):
             playersin, bench = sub(playersin, bench, row)  #calculate +/- of subout.
+            print("SUB!")
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
         elif (row['Event_Msg_Type'] == 12):
