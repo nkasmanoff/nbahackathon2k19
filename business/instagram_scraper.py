@@ -37,7 +37,10 @@ Obviously this is an imperfect approach, but it's somewhere to start!
 import os
 import pandas as pd
 
-instas = pd.read_csv('Business Analytics/training_set.csv',encoding = 'unicode_escape')
+training_instas = pd.read_csv('Business Analytics/training_set.csv',encoding = 'unicode_escape')
+holdout_instas = pd.read_csv('Business Analytics/holdout_set.csv',encoding = 'unicode_escape')
+instas = pd.concat([training_instas,holdout_instas],axis=0)
+                   
 instas.fillna('',inplace=True)
 
 #%%
@@ -83,7 +86,7 @@ def make_num(z):
    
     return num
 
-def get_followers(z,driver):
+def get_followers_and_PC(z,driver):
     """
     Obtains follower count for profile in profile df. 
     
@@ -113,13 +116,26 @@ def get_followers(z,driver):
     hrefs_in_view = driver.find_elements_by_tag_name('a')
     
     #this gives the link that has the attached follower number. 
-    for elem in hrefs_in_view:
-        if elem.get_attribute('href') ==  "https://www.instagram.com/accounts/login/?next=%2F"+z+"%2Ffollowers%2F&source=followed_by_list": #'https://www.instagram.com/'+z+'/followers/':
+    print("Account: ", z)
+    try:
             
-            followers = make_num(elem.text)
-            
-            return followers
-              
+        for elem in hrefs_in_view:
+                if elem.get_attribute('href') ==  "https://www.instagram.com/accounts/login/?next=%2F"+z+"%2Ffollowers%2F&source=followed_by_list": #'https://www.instagram.com/'+z+'/followers/':
+                
+                    followers = make_num(elem.text)
+                    print("Followers ", followers)
+                if elem.get_attribute('href') ==  "https://www.instagram.com/accounts/login/?next=%2F"+z+"%2F&source=profile_posts": 
+                    post_count = make_num(elem.text)
+                    print("Post count: ", post_count)
+        try:
+            return (followers,post_count)
+        except:
+            print("Invalid account")
+            return 
+    except:
+        print(z, ' is a private acct? ')
+        return
+    
 def load_tagged_profiles(instas):
     """
     
@@ -164,9 +180,11 @@ def load_tagged_profiles(instas):
     profile_df.drop_duplicates(inplace=True)
 
     #but we're not done yet, can also encode how popular these accounts are, doing it based on follower count. 
+    profile_df = profile_df[profile_df['profile'].apply(len) > 2]
     from selenium import webdriver
     driver = webdriver.Chrome('/Users/noahkasmanoff/Desktop/chromedriver') #open up chrome/spotify
-    profile_df['followers']  = profile_df['profile'].apply(lambda z: get_followers(z,driver))
+    profile_df['followers + post_count']  = profile_df['profile'].apply(lambda z: get_followers_and_PC(z,driver))
+
     driver.close()
     return profile_df
 
