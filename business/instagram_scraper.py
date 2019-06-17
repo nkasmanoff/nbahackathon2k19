@@ -156,12 +156,9 @@ def load_tagged_profiles(instas):
         if account[-1] == '.':
             account = account[:-1] #remove the period accidentally taken at the end. 
         posts_w_account = instas.loc[instas['Description'].str.contains(account)]
-        max_eng = posts_w_account.Engagements.max()
-        min_eng = posts_w_account.Engagements.min()
-        avg_eng = posts_w_account.Engagements.mean()
         n_posts = posts_w_account.Engagements.count()
-        d.append({'profile': account, 'max_eng': max_eng, 
-                 'n_posts' : n_posts, 'min_eng' : min_eng, 'avg_eng' : avg_eng})
+        d.append({'profile': account,
+                 'n_posts' : n_posts})
    
     profile_df = DataFrame(d)
     profile_df.drop_duplicates(inplace=True)
@@ -259,12 +256,9 @@ def load_hashtags(instas):
     d = []
     for hashtag in hashtags:
         posts_w_hashtag = instas.loc[instas['Description'].str.contains(hashtag)]
-        max_eng = posts_w_hashtag.Engagements.max()
         n_posts = posts_w_hashtag.Engagements.count()
-        min_eng = posts_w_hashtag.Engagements.min()
-        avg_eng = posts_w_hashtag.Engagements.mean()
-        d.append({'hashtags': hashtag, 'max_eng': max_eng, 
-                 'n_posts' : n_posts, 'min_eng' : min_eng, 'avg_eng' : avg_eng})
+        d.append({'hashtags': hashtag,
+                 'n_posts' : n_posts})
 
     hashtags_df = DataFrame(d)
     #but we're not done, can also establish how popular these accounts are, doing it based on follower count. 
@@ -291,6 +285,3 @@ else:
 print("Scraping complete. Now have dataframes containing information regarding the tagged accounts and hashtags used in each instagram post of the training set. Make sure to generalize for holdout too!")
 
 
-#%%
-
-test = instas[instas['Description'].str.contains('@t')]
