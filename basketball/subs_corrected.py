@@ -25,11 +25,11 @@ codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
 box_score_ratings = pd.DataFrame()
 
 def sub_correction(z,team_assignments):
-    player = team_assignments.loc[team_assignments['Person_id'] == z['Person2'].values[0]] #correctly assigned player. 
-    #print(player)
+    player = team_assignments.loc[team_assignments['Person_id'] == z['Person2']] #correctly assigned player. 
+    print(player[['Person_id','Team_id']])
     
     try:
-        return player['Team_id'].unique()[0] #this is the correct assignment of the player. 
+        return player['Team_id'].values[0] #this is the correct assignment of the player. 
     except:
         
         return 
@@ -187,7 +187,7 @@ def sub(playersin, bench, substitution):
     """
 
     teamid = substitution['Team_id']
-    print('teamid',teamid)
+    #print('teamid',teamid)
     suboutID = substitution['Person1']
     subinID = substitution['Person2']
     score1 = substitution['score_x']
@@ -407,16 +407,15 @@ for game in pbp['Game_id'].unique()[0:1]:
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
     team_assignments = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == 0)] #starting lineup of the game
-   # subs = pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 8]
-    #subs['Team_id']  = subs.apply(lambda z: sub_correction(subs,team_assignments),axis=1)
-    #pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 8] = subs
+    subs = pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 8]
+    subs['Team_id'] = subs.apply(lambda z: sub_correction(z,team_assignments),axis=1)
+    pbp_singlegame[pbp_singlegame['Event_Msg_Type'] == 8] = subs
     playersin = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 1),['Team_id','Person_id']])
     
     bench = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 0) ,['Team_id','Person_id']])  #all players associated with a game. 
     bench = bench[~bench['Person_id'].isin(playersin['Person_id'])]
     
-    
-    
+    pbp_singlegame.drop_duplicates(keep='first',inplace=True)
     pbp_singlegame = pbp_singlegame.sort_values(['Period','PC_Time','WC_Time','Event_Num'],
         ascending=[True,False,True,True])
     
@@ -431,10 +430,16 @@ for game in pbp['Game_id'].unique()[0:1]:
     bench['diffin'] = bench['pm'] = bench['plusin'] = bench['opts'] = 0
     bench['minusin'] = bench['dpts'] = bench['offensive_nposs'] = bench['off_possin'] = 0
     bench['defensive_nposs'] = bench['def_possin'] = 0 
+    
+    i = 0
     for index, row in pbp_singlegame.iterrows():
         if (row['Event_Msg_Type'] == 8):
             playersin, bench = sub(playersin, bench, row)  #calculate +/- of subout.
             print("SUB!")
+          #  print(row['Team_id'])
+            i +=1
+            if i == 3:
+                print()
             
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
