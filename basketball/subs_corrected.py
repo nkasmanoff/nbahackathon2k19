@@ -25,18 +25,15 @@ codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
 box_score_ratings = pd.DataFrame()
 
 def sub_correction(z,team_assignments):
-    player = team_assignments.loc[team_assignments['Person_id'] == z['Person2']] #correctly assigned player. 
-    print(player[['Person_id','Team_id']])
+    player1steam = team_assignments.loc[team_assignments['Person_id'] == z['Person1']]['Team_id'].values[0] #correctly assigned player. 
+    player2steam = team_assignments.loc[team_assignments['Person_id'] == z['Person2']]['Team_id'].values[0] #correctly assigned player. 
+   # if player
+    if player1steam == player2steam:
+        return player1steam
     
-    try:
-        return player['Team_id'].values[0] #this is the correct assignment of the player. 
-    except:
-        
-        return 
-        #try:
-         #   player = team_assignments.loc[team_assignments['Person_id'] == z['Person1'].values[0]] #correctly assigned player. 
-      #  except:
-            
+    else:
+        return player2steam 
+
     
 
 def freethrowexceptions(z):
@@ -145,6 +142,8 @@ def score_aggregator(pbp_singlegame):
     pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 5, 'Option1'] = 0
     pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 6, 'Option1'] = 0
     
+    
+    
     pbp_singlegame['score'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Option1'].cumsum()
     team1score = pbp_singlegame.loc[pbp_singlegame.iloc[:,10] == teams[0]]
     team2score = pbp_singlegame.loc[pbp_singlegame.iloc[:,10] == teams[1]]
@@ -211,7 +210,7 @@ def sub(playersin, bench, substitution):
         defensive_nposs = offensive_nposs1
 
     suboutindex = (playersin['Person_id'] == suboutID)
-    subinindex = (bench['Person_id'] == subinID)
+  #  subinindex = (bench['Person_id'] == subinID)
 
     # calculates plus minus of the player at the subout index. 
     playersin.loc[suboutindex,'pm'] = playersin.loc[suboutindex,'pm']     + diff - playersin.loc[suboutindex,'diffin']
@@ -220,8 +219,6 @@ def sub(playersin, bench, substitution):
     playersin.loc[suboutindex,'dpts'] = playersin.loc[suboutindex,'dpts']     + dpts -  playersin.loc[suboutindex,'minusin']
     playersin.loc[suboutindex,'offensive_nposs'] = playersin.loc[suboutindex,'offensive_nposs']     + offensive_nposs -  playersin.loc[suboutindex,'off_possin']
     playersin.loc[suboutindex,'defensive_nposs'] = playersin.loc[suboutindex,'defensive_nposs']     + defensive_nposs -  playersin.loc[suboutindex,'def_possin']
-    playersin.loc[suboutindex,'timessubbed'] = playersin.loc[suboutindex,'timessubbed']     + 1
-    bench.loc[subinindex,'timessubbed'] = bench.loc[subinindex,'timessubbed']     + 1
 
 
     playersin = playersin.append(bench.loc[bench['Person_id'] == subinID])
@@ -278,8 +275,6 @@ def startperiod(playersin, bench, startrow):
     print("Period: ", period)
     # identify who is coming in at the start of the period
     periodstarters = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == period)]
-    allplayers = pd.concat([bench, playersin])
-
     # allocate players going in and those on the bench
     playersintemp = pd.concat([
             playersin.loc[playersin['Person_id'].isin(periodstarters['Person_id'])], \
@@ -292,22 +287,6 @@ def startperiod(playersin, bench, startrow):
 
     playersin = playersintemp
     bench = benchtemp
-
-    check = periodstarters['Person_id'].isin(allplayers['Person_id'])
-    if ~check.all():
-        print("This wen toff " )
-        newplayers = periodstarters.loc[~check]
-        for index,newplayer in newplayers.iterrows():
-            playersin = playersin.append(
-                {'Team_id': newplayer['Team_id'],
-                 'Person_id': newplayer['Person_id'],
-                 'diffin':0,
-                 'pm':0,
-                 'plusin':0,
-                 'opts':0,
-                 'minusin':0,
-                 'dpts':0},
-                ignore_index = True)
 
 
     # set the score difference for all players at the start of the period
@@ -362,6 +341,7 @@ def endperiod(playersin, bench, endrow):
     
     diff1 = score1 - score2
     diff2 = score2 - score1
+    
     # calculate plus minus for everyone at the end of the period
     playersin.loc[playersin['Team_id'] == teams[0], 'pm']  = playersin.loc[playersin['Team_id'] == teams[0],'pm']  + diff1 - playersin.loc[playersin['Team_id'] == teams[0],'diffin']
     playersin.loc[playersin['Team_id'] == teams[1], 'pm']  = playersin.loc[playersin['Team_id'] == teams[1],'pm']  + diff2 - playersin.loc[playersin['Team_id'] == teams[1],'diffin']
@@ -400,9 +380,13 @@ for game in pbp['Game_id'].unique()[0:1]:
     #translate using codes
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
-    
+    pbp_singlegame = pbp_singlegame.sort_values(['Period','PC_Time','Event_Msg_Type','WC_Time','Event_Num'],
+        ascending=[True,False,True,True,True])
+    pbp_singlegame = score_aggregator(pbp_singlegame)
+    pbp_singlegame = possession_flagger(pbp_singlegame)
 
-
+    pbp_singlegame = pbp_singlegame.sort_values(['Period','PC_Time','Event_Msg_Type','WC_Time','Event_Num'],
+        ascending=[True,False,True,True,True])
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -415,39 +399,28 @@ for game in pbp['Game_id'].unique()[0:1]:
     bench = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 0) ,['Team_id','Person_id']])  #all players associated with a game. 
     bench = bench[~bench['Person_id'].isin(playersin['Person_id'])]
     
-    pbp_singlegame.drop_duplicates(keep='first',inplace=True)
-    pbp_singlegame = pbp_singlegame.sort_values(['Period','PC_Time','WC_Time','Event_Num'],
-        ascending=[True,False,True,True])
-    
-    pbp_singlegame = possession_flagger(pbp_singlegame)
-    pbp_singlegame = score_aggregator(pbp_singlegame)
-    
     #Initialize point differential both game and players for the dataset. 
     playersin['diffin'] = playersin['pm'] = playersin['plusin'] = playersin['opts'] = 0
     playersin['minusin'] = playersin['dpts'] = playersin['offensive_nposs'] = playersin['off_possin'] =0
     playersin['defensive_nposs'] = playersin['def_possin'] = 0
-    playersin['timessubbed'] = bench['timessubbed'] = 0
     bench['diffin'] = bench['pm'] = bench['plusin'] = bench['opts'] = 0
     bench['minusin'] = bench['dpts'] = bench['offensive_nposs'] = bench['off_possin'] = 0
     bench['defensive_nposs'] = bench['def_possin'] = 0 
     
     i = 0
     for index, row in pbp_singlegame.iterrows():
+
         if (row['Event_Msg_Type'] == 8):
             playersin, bench = sub(playersin, bench, row)  #calculate +/- of subout.
             print("SUB!")
-          #  print(row['Team_id'])
-            i +=1
-            if i == 3:
-                print()
-            
+          #  print(row['Team_id'])           # if i == 10:
+        
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
-            break
+            
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
-           # break
-
+            
     pm = pd.concat([playersin,bench],axis=0)#[['Person_id','Team_id','pm','opts','dpts','offensive_nposs','defensive_nposs']]
     pm['Game_id'] = game
 
