@@ -37,7 +37,10 @@ Obviously this is an imperfect approach, but it's somewhere to start!
 import os
 import pandas as pd
 
-instas = pd.read_csv('Business Analytics/training_set.csv',encoding = 'unicode_escape')
+training_instas = pd.read_csv('Business Analytics/training_set.csv',encoding = 'unicode_escape')
+holdout_instas = pd.read_csv('Business Analytics/holdout_set.csv',encoding = 'unicode_escape')
+instas = pd.concat([training_instas,holdout_instas],axis=0)
+                   
 instas.fillna('',inplace=True)
 
 #%%
@@ -83,7 +86,7 @@ def make_num(z):
    
     return num
 
-def get_followers(z,driver):
+def get_followers_and_PC(z,driver):
     """
     Obtains follower count for profile in profile df. 
     
@@ -113,13 +116,26 @@ def get_followers(z,driver):
     hrefs_in_view = driver.find_elements_by_tag_name('a')
     
     #this gives the link that has the attached follower number. 
-    for elem in hrefs_in_view:
-        if elem.get_attribute('href') ==  "https://www.instagram.com/accounts/login/?next=%2F"+z+"%2Ffollowers%2F&source=followed_by_list": #'https://www.instagram.com/'+z+'/followers/':
+    print("Account: ", z)
+    try:
             
-            followers = make_num(elem.text)
-            
-            return followers
-              
+        for elem in hrefs_in_view:
+                if elem.get_attribute('href') ==  "https://www.instagram.com/accounts/login/?next=%2F"+z+"%2Ffollowers%2F&source=followed_by_list": #'https://www.instagram.com/'+z+'/followers/':
+                
+                    followers = make_num(elem.text)
+                    print("Followers ", followers)
+                if elem.get_attribute('href') ==  "https://www.instagram.com/accounts/login/?next=%2F"+z+"%2F&source=profile_posts": 
+                    post_count = make_num(elem.text)
+                    print("Post count: ", post_count)
+        try:
+            return (followers,post_count)
+        except:
+            print("Invalid account")
+            return 
+    except:
+        print(z, ' is a private acct? ')
+        return
+    
 def load_tagged_profiles(instas):
     """
     
@@ -156,20 +172,19 @@ def load_tagged_profiles(instas):
         if account[-1] == '.':
             account = account[:-1] #remove the period accidentally taken at the end. 
         posts_w_account = instas.loc[instas['Description'].str.contains(account)]
-        max_eng = posts_w_account.Engagements.max()
-        min_eng = posts_w_account.Engagements.min()
-        avg_eng = posts_w_account.Engagements.mean()
         n_posts = posts_w_account.Engagements.count()
-        d.append({'profile': account, 'max_eng': max_eng, 
-                 'n_posts' : n_posts, 'min_eng' : min_eng, 'avg_eng' : avg_eng})
+        d.append({'profile': account,
+                 'n_posts' : n_posts})
    
     profile_df = DataFrame(d)
     profile_df.drop_duplicates(inplace=True)
 
     #but we're not done yet, can also encode how popular these accounts are, doing it based on follower count. 
+    profile_df = profile_df[profile_df['profile'].apply(len) > 2]
     from selenium import webdriver
     driver = webdriver.Chrome('/Users/noahkasmanoff/Desktop/chromedriver') #open up chrome/spotify
-    profile_df['followers']  = profile_df['profile'].apply(lambda z: get_followers(z,driver))
+    profile_df['followers + post_count']  = profile_df['profile'].apply(lambda z: get_followers_and_PC(z,driver))
+
     driver.close()
     return profile_df
 
@@ -259,12 +274,9 @@ def load_hashtags(instas):
     d = []
     for hashtag in hashtags:
         posts_w_hashtag = instas.loc[instas['Description'].str.contains(hashtag)]
-        max_eng = posts_w_hashtag.Engagements.max()
         n_posts = posts_w_hashtag.Engagements.count()
-        min_eng = posts_w_hashtag.Engagements.min()
-        avg_eng = posts_w_hashtag.Engagements.mean()
-        d.append({'hashtags': hashtag, 'max_eng': max_eng, 
-                 'n_posts' : n_posts, 'min_eng' : min_eng, 'avg_eng' : avg_eng})
+        d.append({'hashtags': hashtag,
+                 'n_posts' : n_posts})
 
     hashtags_df = DataFrame(d)
     #but we're not done, can also establish how popular these accounts are, doing it based on follower count. 
@@ -291,6 +303,3 @@ else:
 print("Scraping complete. Now have dataframes containing information regarding the tagged accounts and hashtags used in each instagram post of the training set. Make sure to generalize for holdout too!")
 
 
-#%%
-
-test = instas[instas['Description'].str.contains('@t')]
