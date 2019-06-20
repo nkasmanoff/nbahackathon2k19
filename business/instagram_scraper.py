@@ -285,7 +285,7 @@ def load_hashtags(instas):
 
     hashtags_df['# of posts']  = hashtags_df['hashtags'].apply(lambda z: get_postscount(z,driver))
     driver.close()
-    hashtag_df['# of posts'] = hashtag_df['# of posts'].str.replace(',','').astype(float).fillna(1)
+    hashtags_df['# of posts'] = hashtags_df['# of posts'].str.replace(',','').astype(float).fillna(1)
 
     
     return hashtags_df
