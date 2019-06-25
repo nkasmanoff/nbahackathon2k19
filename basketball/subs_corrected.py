@@ -192,8 +192,8 @@ def sub(playersin, bench, substitution):
     score1 = substitution['score_x']
     score2 = substitution['score_y']
     
-    offensive_nposs1 = substitution['npossessions_x'] +1
-    offensive_nposs2 = substitution['npossessions_y'] + 1
+    offensive_nposs1 = substitution['npossessions_x'] 
+    offensive_nposs2 = substitution['npossessions_y']
 
     if teamid == teams[0]:
         diff = score1 - score2
