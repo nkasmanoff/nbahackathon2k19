@@ -31,7 +31,7 @@ model = XGBRegressor(booster='dart',colsample_bytree= 0.5,
 
 from sklearn.model_selection import train_test_split
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01)
 model.fit(X_train,y_train)
 print("Model used: ", model)
 print("Training score: ", model.score(X_train,y_train))
@@ -50,9 +50,9 @@ y_pred = model.predict(X_test)
 print("MAPE Test Score ", mean_absolute_percentage_error(y_true, y_pred))
 
 
-print("Holdout Engagements")
-X_holdout = process_data('Business Analytics/holdout_set.csv')
+#print("Holdout Engagements")
+#X_holdout = process_data('Business Analytics/holdout_set.csv')
 
-holdout_predictions = model.predict(X_holdout)
-holdout_predictions = np.array([round(y) for y in holdout_predictions])
-print(holdout_predictions)
+#holdout_predictions = model.predict(X_holdout)
+#holdout_predictions = np.array([round(y) for y in holdout_predictions])
+#print(holdout_predictions)

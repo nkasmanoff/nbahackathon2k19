@@ -188,7 +188,8 @@ def process_data(file,training=False):
     instas['Description_Len'] = instas['Description'].apply(len)
     instas['num@s'] = instas['Description'].apply(lambda z: z.count('@'))
     instas['num#s'] = instas['Description'].apply(lambda z: z.count('#'))
-    instas['num?s'] = instas['Description'].apply(lambda z: z.count('?')) # a shitty proxy for emojis
+    instas['num?s'] = instas['Description'].apply(lambda z: z.count('?')) 
+    instas['numwords'] = instas['Description'].apply(lambda z: z.count(' ')) 
     import re
     instas['numCAPs'] = instas['Description'].apply(lambda z: len(re.findall(r'[A-Z]',z)))
 
