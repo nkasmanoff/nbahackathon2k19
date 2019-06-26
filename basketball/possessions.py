@@ -397,7 +397,7 @@ def endperiod(playersin, bench, endrow):
 #%%
 box_score_ratings = pd.DataFrame()
 
-for game in pbp['Game_id'].unique()[0:1]:
+for game in pbp['Game_id'].unique():#[0:1]:
     
     #game  = '3ce947db2df86b08a40b7526e2faaccb'  #finals game where lebron plays the whole time. s
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')

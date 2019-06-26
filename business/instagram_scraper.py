@@ -116,7 +116,6 @@ def get_followers_and_PC(z,driver):
     hrefs_in_view = driver.find_elements_by_tag_name('a')
     
     #this gives the link that has the attached follower number. 
-    print("Account: ", z)
     try:
             
         for elem in hrefs_in_view:
@@ -130,10 +129,8 @@ def get_followers_and_PC(z,driver):
         try:
             return (followers,post_count)
         except:
-            print("Invalid account")
             return 
     except:
-        print(z, ' is a private acct? ')
         return
     
 def load_tagged_profiles(instas):
@@ -190,7 +187,6 @@ def load_tagged_profiles(instas):
 
 
 if 'tagged_profiles.csv' in os.listdir('Business Analytics'):
-    print("Already created profile_df, loading now.")
     
     profile_df = pd.read_csv('Business Analytics/tagged_profiles.csv')
 else:
@@ -292,14 +288,9 @@ def load_hashtags(instas):
 
 
 if 'used_hashtags.csv' in os.listdir('Business Analytics'):
-    print("Already created hashtag_df, loading now.")
     hashtag_df = pd.read_csv('Business Analytics/used_hashtags.csv')
 else:
     hashtag_df = load_hashtags(instas)
 
     hashtag_df.to_csv('Business Analytics/used_hashtags.csv',index=False)
     
-    
-print("Scraping complete. Now have dataframes containing information regarding the tagged accounts and hashtags used in each instagram post of the training set. Make sure to generalize for holdout too!")
-
-
