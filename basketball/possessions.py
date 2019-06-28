@@ -397,7 +397,7 @@ def endperiod(playersin, bench, endrow):
 #%%
 box_score_ratings = pd.DataFrame()
 
-for game in pbp['Game_id'].unique():#[0:1]:
+for game in pbp['Game_id'].unique()[0:1]:
     
     #game  = '3ce947db2df86b08a40b7526e2faaccb'  #finals game where lebron plays the whole time. s
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
@@ -470,7 +470,10 @@ for game in pbp['Game_id'].unique():#[0:1]:
     pm = pd.concat([playersin,bench],axis=0)#[['Person_id','Team_id','pm','opts','dpts','offensive_nposs','defensive_nposs']]
     pm['Game_id'] = game
 
+
     box_score_ratings = box_score_ratings.append(pm)
+pbp_viewer = pbp_singlegame[['Period','Team_id','Team_id_type','Event_Msg_Type_Description','Action_Type_Description','score_x','Poss Change','score_y','npossessions_x','npossessions_y']].copy()
+
 box_score_ratings['ORTG'] = 100 * box_score_ratings['opts'] / box_score_ratings['offensive_nposs']
 box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
 box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRTG']
@@ -478,7 +481,10 @@ box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRT
 box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORTG','DRTG','Net_RTG']]
 #%%
 
-realpbp = pd.read_html('https://www.basketball-reference.com/boxscores/pbp/201804270WAS.html')[0].fillna('')
-here = realpbp[1]+realpbp[5]
+#realpbp = pd.read_html('https://www.basketball-reference.com/boxscores/pbp/201804270WAS.html')[0].fillna('')
+#here = realpbp[1]+realpbp[5]
 
+pbp_viewer['Team_id'] = pbp_viewer['Team_id'].apply(lambda z: 'Raptors' if z == '45ba8fc87f55b1191c50c400dc7ed11c' else z)
+
+pbp_viewer['Team_id'] = pbp_viewer['Team_id'].apply(lambda z: 'Wizards' if z == '01be0ad4af7aeb1f6d2cc2b6b6d6d811' else z)
 

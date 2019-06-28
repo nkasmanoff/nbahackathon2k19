@@ -231,4 +231,37 @@ def process_data(file,training=False):
 
 
 if __name__ == '__main__':
-	print(process_data('Business Analytics/training_set.csv',training=True))
+    X,y = process_data('Business Analytics/training_set.csv',training=True)
+
+    import matplotlib.pyplot as plt
+    from sklearn.datasets import make_classification
+    from sklearn.ensemble import ExtraTreesRegressor
+
+    # Build a classification task using 3 informative features
+
+    # Build a forest and compute the feature importances
+    forest = ExtraTreesRegressor(n_estimators=250,
+                                  random_state=0)
+     
+    forest.fit(X, y)
+    importances = forest.feature_importances_
+    std = np.std([tree.feature_importances_ for tree in forest.estimators_],
+                 axis=0)
+    indices = np.argsort(importances)[::-1]
+
+    # Print the feature ranking
+    #print("Feature ranking:")
+    col_names = []
+    for f in range(X.shape[1]):
+     #   print("%d. feature %d (%f)" % (f + 1, indices[f], importances[indices[f]]))
+     #   print(X.columns[indices[f]])
+        col_names.append(X.columns[indices[f]])
+
+    # Plot the feature importances of the forest
+    plt.figure(figsize=(25,10))
+    plt.title("Feature importances")
+    plt.bar(range(X.shape[1]), importances[indices],
+           color="r", yerr=std[indices], align="center")
+    plt.xticks(range(X.shape[1]), col_names,rotation=90)
+    plt.xlim([-1, X.shape[1]])
+    plt.show()
