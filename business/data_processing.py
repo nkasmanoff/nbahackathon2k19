@@ -153,7 +153,7 @@ def normalize(df):
 
 
 
-def process_data(file,training=False):
+def process_data(file,training=False,k_prof = 11, k_hash = 8 ):
     """Loads in file, either the training or holdout set, and transforms it into the dataframe we want using the variable 
     changes based solely on that particular dataframe, as well as based on exogenous features such as profiles tagged, and hashtags used. 
     
@@ -212,8 +212,8 @@ def process_data(file,training=False):
     instas['Year'] = instas['Created'].apply(lambda z: z.split('-')[0])
     
     
-    instas = cluster_profiles(instas,k=11)#make k unique clusters of profiles, and apply that to dataset. 
-    instas = cluster_hashtags(instas,k=8)#make k unique clusters of profiles, and apply that to dataset. 
+    instas = cluster_profiles(instas,k=k_prof)#make k unique clusters of profiles, and apply that to dataset. 
+    instas = cluster_hashtags(instas,k=k_hash)#make k unique clusters of profiles, and apply that to dataset. 
 
     instas['Followers Gained Since Last Post'] = -instas['Followers at Posting'].diff(1).shift(-1).fillna(0)
     if training:

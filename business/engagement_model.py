@@ -23,7 +23,7 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 from xgboost import XGBRegressor
 from sklearn.model_selection import GridSearchCV, train_test_split
-#X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.01)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
 
 
 
@@ -36,10 +36,10 @@ params = {'min_child_weight':[3,4], 'gamma':[i/10.0 for i in [.5,1,1.5]],  'subs
 model = XGBRegressor(nthread=-1) 
 
 grid = GridSearchCV(model, params)
-grid.fit(X, y)
+grid.fit(X_train, y_train)
 
 print("MAPE Test Score ")
-print(mean_absolute_percentage_error(y, grid.best_estimator_.predict(X)))
+print(mean_absolute_percentage_error(y_test, grid.best_estimator_.predict(X_test)))
 
 print("Best parameters ")
 print(grid.best_params_)
