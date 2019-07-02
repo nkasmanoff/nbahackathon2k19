@@ -23,17 +23,14 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 
 
-ks = [40,40,40] #every other
+ks = [250,250,250] #every other
 
-params = {'colsample_bytree': [0.5], 'gamma': [0.05], 'max_depth': [4], 'min_child_weight': [4], 'n_estimators': [600], 'subsample': [0.6]}
+params = {'colsample_bytree': [0.5], 'gamma': [0.05], 'max_depth': [4], 'min_child_weight': [4], 'n_estimators': [1000], 'subsample': [0.6]}
 #%%
 
+MAPES = []
 for k_prof in ks:
     for k_hash in ks:
-        
-        
-        print("# of profile clusters: ", k_prof)
-        print("# of hashtag clusters: ", k_hash)
         
         X, y = process_data('Business Analytics/training_set.csv',k_prof = k_prof,k_hash = k_hash,training=True)
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
@@ -47,10 +44,16 @@ for k_prof in ks:
     
         print("MAPE Test Score ")
         print(mean_absolute_percentage_error(y_test, grid.best_estimator_.predict(X_test)))
+        MAPES.append(mean_absolute_percentage_error(y_test, grid.best_estimator_.predict(X_test)))
     
       #  print("Best parameters ")
       #  print(grid.best_params_)
         
+#%%
+print(np.mean(MAPES), '+/-', 2*np.std(MAPES))
+#%%
+
+
 #%%
 X, y = process_data('Business Analytics/training_set.csv',k_prof = 40,k_hash = 40,training=True)
 
