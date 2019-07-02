@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+
+Using the nba rulebook for possessions, confirm this is consistent with the records on nba.com. 
+
+
+Section XVIII-Team Possession
+
+A team is in possession when a player is holding, dribbling or passing the ball. 
+Team possession ends when the defensive team gains possession or there is a field goal attempt.
+
 Created on Fri Jun 14 13:57:47 2019
 
 Trying to fix substitutions once and for all. exii
@@ -80,7 +89,7 @@ def freethrowexceptions(z):
         if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]: #if final free throw
                 
             if z['Option1'] == 1 and z['Action_Type_Description'].split(' ')[-1] != '1':
-                    #made final free throw. 
+                    #made final free throw, and it isn't an and 1
                     return True
       
     
@@ -110,19 +119,29 @@ def possession_flagger(pbp_singlegame):
     
     """
     #first, sort according to event num, have to do this for possessions, but not other stuff. 
-    pbp_singlegame.sort_values(['Event_Num'],
-        ascending=[True],inplace=True)
-        
+#    pbp_singlegame.sort_values(['Event_Num'],
+ #       ascending=[True],inplace=True)
     
-    #create new column for each type of possession change, combine at the end. 
+    #create new column for each type of possession change, combine at the end.
+    
+    #made shot possession change
     pbp_singlegame['Poss Change 1'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 1 else False)
     
+    #defensive rebound possession change
     pbp_singlegame['Poss Change Rebound'] = pbp_singlegame['Action_Type_Description'].apply(lambda z: True if 'Defensive' in z else False)
     
-    
-    #((pbp_singlegame['Team_id'] != pbp_singlegame['Team_id'].shift(-1)) & (pbp_singlegame['Event_Msg_Type_Description'].str.contains('Rebound')))   
+    #turnover
     pbp_singlegame['Poss Change 5'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 5 else False)
-    pbp_singlegame['Poss Change 13'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 13 else False)
+    
+    #end of period #possession change? 
+  #  pbp_singlegame['Poss Change 13'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 13 else False)
+    
+    #missed field goal attempt
+    
+    pbp_singlegame['Poss Change 2'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 2 else False)
+
+    
+    #made final free throw
     pbp_singlegame['Poss Change 6'] = pbp_singlegame.apply(lambda z: freethrowexceptions(z),axis=1)
     
     #merge all those possession change types together. 

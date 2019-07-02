@@ -27,7 +27,9 @@ TOR had just over 90 posessions,
 
 WAS had just under 89 Possessions
 
-TOR HAD 
+TOR HAD
+
+update pbp singlegame so that if the final thing before a period ends is a made field goal, assign a possesion to that period's end.  
 """
 
 
@@ -436,6 +438,24 @@ for game in pbp['Game_id'].unique()[0:1]:
     pbp_singlegame['Option1'] = pbp_singlegame.apply(lambda z: 10 if z['Event_Msg_Type'] == 8 else z['Option1'],axis=1)
     pbp_singlegame['Option1'] = pbp_singlegame.apply(lambda z: 10 if z['Event_Msg_Type'] == 9 else z['Option1'],axis=1)
 
+    pbp_singlegame.sort_values(['Period','PC_Time','Option1','WC_Time','Event_Num'],
+            ascending=[True,False,True,True,True],inplace=True)
+#%% fix pbp singlegame here, it will have a new row or two afterwards
+
+end_periods = pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 13]
+
+#%%
+pbp_shift = pbp_singlegame.shift(1)
+
+
+#%%
+
+priors = pbp_shift.iloc[end_periods.index]
+
+priors = priors[priors['Event_Msg_Type'] == 1]
+
+poss_poss = pd.concat([priors,end_periods.iloc[priors.index]],axis=0)
+#%%
     pbp_singlegame = possession_flagger(pbp_singlegame)
     
     
