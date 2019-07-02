@@ -3,34 +3,37 @@
 """
 Created on Fri Jun 14 13:57:47 2019
 
-Trying to fix substitutions once and for all. exii
+Trying to fix substitutions once and for all. The first game in the loop I've been spot checking is 
 https://www.basketball-reference.com/boxscores/201804270WAS.html
 
-Reference games 
 
-
-
-USE NBA .com for possession stats! It appears they have diff. definitions that BR
+For possession stats, see  NBA.com with the links below (but more are necessary!)
 
 https://stats.nba.com/teams/advanced/?sort=OFF_RATING&dir=1&Season=2017-18&SeasonType=Playoffs&PORound=1&DateFrom=04%2F27%2F2018&DateTo=04%2F28%2F2018
 https://stats.nba.com/players/advanced/?sort=GP&dir=-1&Season=2017-18&SeasonType=Playoffs&DateFrom=04%2F27%2F2018&DateTo=04%2F28%2F2018&TeamID=1610612761
 https://stats.nba.com/players/traditional/?sort=PTS&dir=-1&Season=2017-18&SeasonType=Playoffs&DateFrom=04%2F27%2F2018&DateTo=04%2F28%2F2018
 
-TEAM DEFENSIVE REBOUNDS HAVE THE INCORRECT NAME ASSIGNED TO TEAM ID: SWITCH THAT SO THEY ARE THE END OF POSS FOR THAT TEAM> 
 
-@author: noahkasmanoff
+
 
 According to nba.com,
-
-
 TOR had just over 90 posessions, 
-
 WAS had just under 89 Possessions
 
-TOR HAD 
+This is slightly off from what we have below, and basketball reference has 181 total (1 less than what the code below has)
+
+Obviously some sort of disparity is here, but is this due to:
+    
+    - Tweaks in the definition of the end of a possession, by any of these sources
+    
+    - Tweaks in the play by play, which is something the hackathon said they may do to the data (didn't say if it was in basketball, business, or both!)
+
+
+I've yet to find evidence of either of these issues yet, and until so I'm not confident in submitting these ratings as is. 
+Either they should be identical to the onces recorded on nba.com, or we should know why they aren't. 
+
+
 """
-
-
 #%%
 import pandas as pd
 import warnings
@@ -395,11 +398,15 @@ def endperiod(playersin, bench, endrow):
     return playersin, bench
 
 #%%
+
+#Here I just loop over 1 game, but then replace it to a game of interest. In this case,
+# I did it for game 2 of the Warriors Pelicans Series. The first game in the loop is the 92-102 Raptors Wizards game talked about in the top most part of the code. 
+
 box_score_ratings = pd.DataFrame()
 
-for game in pbp['Game_id'].unique()[0:1]:
+for game in pbp['Game_id'].unique()[0:1]: 
     
-   # game  = 'a466c76e072fd634f6d4a8938fb63caa' #'3ce947db2df86b08a40b7526e2faaccb'  #finals game where lebron plays the whole time. s
+    game  = '03ac65b9a32fde1e201bfb427f6e41e4'
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
     lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
     codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
@@ -425,9 +432,6 @@ for game in pbp['Game_id'].unique()[0:1]:
     
     rebounds = pbp_singlegame.loc[pbp_singlegame['Event_Msg_Type'] == 4]
     rebounds['Action_Type_Description'] = rebounds.apply(lambda z: rebound_correction(z,team_assignments),axis=1)
-    #teamrebounds = rebounds.loc[rebounds['Action_Type_Description'] == 'Defensive-TEAM']
-    #teamrebounds['Team_id'] = teamrebounds.apply(lambda z: teams[1] if z['Team_id'] == teams[0] else teams[0],axis=1)
-    #rebounds.loc[rebounds['Action_Type_Description'] == 'Defensive-TEAM'] = teamrebounds
     pbp_singlegame[pbp_singlegame['Event_Msg_Type'] == 4] = rebounds
 
     pbp_singlegame = pbp_singlegame.sort_values(['Period','PC_Time','Event_Msg_Type','WC_Time','Event_Num'],
@@ -479,12 +483,5 @@ box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings[
 box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRTG']
 
 box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORTG','DRTG','Net_RTG']]
-#%%
 
-#realpbp = pd.read_html('https://www.basketball-reference.com/boxscores/pbp/201804270WAS.html')[0].fillna('')
-#here = realpbp[1]+realpbp[5]
-
-pbp_viewer['Team_id'] = pbp_viewer['Team_id'].apply(lambda z: 'Raptors' if z == '45ba8fc87f55b1191c50c400dc7ed11c' else z)
-
-pbp_viewer['Team_id'] = pbp_viewer['Team_id'].apply(lambda z: 'Wizards' if z == '01be0ad4af7aeb1f6d2cc2b6b6d6d811' else z)
-
+#outputs box scores in a nice format. 
