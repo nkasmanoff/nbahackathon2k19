@@ -128,8 +128,16 @@ def cluster_hashtags(instas,k):
 
 
 #utilitiy functions before data processing. 
+def find_blocks(z):
+    dunk_words = ['swat','rejected','block','denies','denied']
+    for dw in dunk_words:
+        if dw in z.lower(): 
+            return 1
+    return 0
+
+
 def find_dunks(z):
-    dunk_words = ['slam','jam','dunk','putback','rim','windmill','flush','oop']
+    dunk_words = ['slam','jam','dunk','putback','windmill','flush','oop','lob']
     for dw in dunk_words:
         if dw in z.lower(): 
             return 1
@@ -195,6 +203,7 @@ def process_data(file,training=False,k_prof = 11, k_hash = 8 ):
 
     instas['Buzzer Beater?'] = instas['Description'].apply(lambda z: find_buzzer_beaters(z)) #shitty proxy for buzzer beaters
     instas['Dunk?'] = instas['Description'].apply(lambda z:  find_dunks(z)) #shitty proxy for buzzer beaters
+    instas['Block?'] = instas['Description'].apply(lambda z:  find_blocks(z)) #shitty proxy for buzzer beaters
 
 
     import datetime

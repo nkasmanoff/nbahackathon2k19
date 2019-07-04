@@ -31,7 +31,7 @@ for k_prof in ks:
     for k_hash in ks:
         
         X, y = process_data('Business Analytics/training_set.csv',k_prof = k_prof,k_hash = k_hash,training=True)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
         model = XGBRegressor(colsample_bytree =0.5, gamma = 0.05, max_depth = 4, min_child_weight = 4, n_estimators = 1000, subsample = 0.6) 
 
         model.fit(X_train, y_train)
@@ -62,13 +62,50 @@ model = XGBRegressor(colsample_bytree =0.5, gamma = 0.05, max_depth = 4, min_chi
 model.fit(X, y)
 
 
-
 #%%
 
-y_true = y.values
+from sklearn.datasets import make_classification
+from sklearn.ensemble import ExtraTreesRegressor
+import matplotlib.pyplot as plt
+# Build a classification task using 3 informative features
+
+# Build a forest and compute the feature importances
+forest = ExtraTreesRegressor(n_estimators=1000,
+                              random_state=0)
+ 
+forest.fit(X, y)
+importances = forest.feature_importances_
+std = np.std([tree.feature_importances_ for tree in forest.estimators_],
+             axis=0)
+indices = np.argsort(importances)[::-1]
+
+# Print the feature ranking
+#print("Feature ranking:")
+
+
+#%%
+col_names = []
+for f in range(X.shape[1]):
+   # print("%d. feature %d (%f)" % (f + , indices[f], importances[indices[f]]))
+  #  print(X.columns[indices[f]])
+    col_names.append(X.columns[indices[f]])
+#%%
+
+
+# Plot the feature importances of the forest
+plt.figure(figsize=(120,40))
+plt.title("Feature importances")
+plt.bar(range(X.shape[1]), importances[indices],
+       color="r", yerr=std[indices], align="center")
+plt.xticks(range(X.shape[1]), col_names,rotation=90)
+plt.xlim([-1, X.shape[1]])
+plt.show()
+#%%
+X = X_test.copy(deep=True)
+y_true = y_test.values
 y_pred = model.predict(X)
 X['APE'] = 100*abs(y_true - y_pred)/ y_true
-X['Good Job?'] = X['APE'].apply(lambda z: 1 if z < 3 else 0)
+X['Good Job?'] = X['APE'].apply(lambda z: 1 if z < 5 else 0)
 X_holdout = process_data('Business Analytics/holdout_set.csv',k_prof = 300,k_hash = 300,training=False)
 X_holdout['Holdout?'] = 2*np.ones(len(X_holdout))
 
