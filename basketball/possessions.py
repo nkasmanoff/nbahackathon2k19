@@ -195,7 +195,7 @@ def score_aggregator(pbp_singlegame):
     return pbp_singlegame
 
 
-def sub(playersin, bench, substitution):
+def sub(playersin, bench, substitution,fte=False):
     """
     
     Function to calculate plus/minus for individuals when they subout
@@ -216,6 +216,8 @@ def sub(playersin, bench, substitution):
         a single row from the play-by-play dataframe for which the substitution occurs
         Event Msg Type: 8
 
+    fte : bool
+        Boolean for whether or not to include free throw exception, and not add an additional poss in sub. 
     Returns :
     playersin, bench
     -------
@@ -237,27 +239,26 @@ def sub(playersin, bench, substitution):
         dpts = score2
         offensive_nposs = offensive_nposs1 
         defensive_nposs = offensive_nposs2
-        if substitution['Team_id_type'] == team_0_type:
-            print("This was an offensive sub for team 0")
-            offensive_nposs = offensive_nposs + 1
-        else:
-            print("This was a defensive sub for team 0")
-
-            defensive_nposs = defensive_nposs + 1
+        if not fte: 
+            if substitution['Team_id_type'] == team_0_type:
+                print("This was an offensive sub for team 0")
+                offensive_nposs = offensive_nposs + 1
+            else:
+                print("This was a defensive sub for team 0")
+                defensive_nposs = defensive_nposs + 1
     if teamid == teams[1]:
         diff = score2 - score1
         opts = score2
         dpts = score1
         offensive_nposs = offensive_nposs2 
         defensive_nposs = offensive_nposs1 
-        
-        if substitution['Team_id_type'] == team_1_type:
-           print("This was an offensive sub for team 1")
-           offensive_nposs = offensive_nposs + 1
-        else:
-           print("This was a defensive sub for team 1")
-
-           defensive_nposs = defensive_nposs + 1
+        if not fte: 
+            if substitution['Team_id_type'] == team_1_type:
+               print("This was an offensive sub for team 1")
+               offensive_nposs = offensive_nposs + 1
+            else:
+               print("This was a defensive sub for team 1")
+               defensive_nposs = defensive_nposs + 1
 
 
     suboutindex = (playersin['Person_id'] == suboutID)
@@ -271,7 +272,21 @@ def sub(playersin, bench, substitution):
     playersin.loc[suboutindex,'offensive_nposs'] = playersin.loc[suboutindex,'offensive_nposs']     + offensive_nposs -  playersin.loc[suboutindex,'off_possin']
     playersin.loc[suboutindex,'defensive_nposs'] = playersin.loc[suboutindex,'defensive_nposs']     + defensive_nposs -  playersin.loc[suboutindex,'def_possin']
 
-
+    if teamid == teams[1]:
+        if not fte:
+            if substitution['Team_id_type'] == team_1_type:
+               offensive_nposs = offensive_nposs - 1
+            else:
+               defensive_nposs = defensive_nposs - 1
+           
+    if teamid == teams[0]:
+        if not fte:
+            if substitution['Team_id_type'] == team_0_type:
+               offensive_nposs = offensive_nposs - 1
+            else:
+               defensive_nposs = defensive_nposs - 1
+           
+           
     playersin = playersin.append(bench.loc[bench['Person_id'] == subinID])
     bench = bench.loc[~(bench['Person_id'] == subinID)]
         
@@ -283,21 +298,6 @@ def sub(playersin, bench, substitution):
     playersin.loc[playersin['Person_id'] == subinID, 'plusin'] = opts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
     playersin.loc[playersin['Person_id'] == subinID, 'minusin'] = dpts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
     
-    
-    if teamid == teams[1]:
-        if substitution['Team_id_type'] == team_1_type:
-           offensive_nposs = offensive_nposs - 1
-        else:
-
-           defensive_nposs = defensive_nposs - 1
-    
-    
-    if teamid == teams[0]:
-        if substitution['Team_id_type'] == team_0_type:
-           offensive_nposs = offensive_nposs - 1
-        else:
-
-           defensive_nposs = defensive_nposs - 1
     playersin.loc[playersin['Person_id'] == subinID, 'off_possin'] = offensive_nposs  #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
     playersin.loc[playersin['Person_id'] == subinID, 'def_possin'] = defensive_nposs  #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
 
@@ -494,8 +494,15 @@ for game in pbp['Game_id'].unique()[0:1]:
     for index, row in pbp_singlegame.iterrows():
 
         if (row['Event_Msg_Type'] == 8):
-            playersin, bench = sub(playersin, bench, row)  #calculate +/- of subout.
             print("SUB!")
+            prior_play = pbp_singlegame.iloc[index - 1]
+            if (prior_play['Event_Msg_Type'] == 3) & (prior_play['Option1'] == 1):
+                fte = True
+                print("Found a free throw exception")
+            else:
+                fte = False
+            playersin, bench = sub(playersin, bench, row,fte)  #calculate +/- of subout.
+
           #  print(row['Team_id'])           # if i == 10:
         
         elif (row['Event_Msg_Type'] == 13):
