@@ -222,28 +222,43 @@ def sub(playersin, bench, substitution):
     """
 
     teamid = substitution['Team_id']
-    #print('teamid',teamid)
+    print('teamid',teamid)
     suboutID = substitution['Person1']
     subinID = substitution['Person2']
     score1 = substitution['score_x']
     score2 = substitution['score_y']
     
     offensive_nposs1 = substitution['npossessions_x']
-    offensive_nposs2 = substitution['npossessions_y']
-
+    offensive_nposs2 = substitution['npossessions_y'] 
     if teamid == teams[0]:
+        
         diff = score1 - score2
         opts = score1 
         dpts = score2
-        offensive_nposs = offensive_nposs1
+        offensive_nposs = offensive_nposs1 
         defensive_nposs = offensive_nposs2
+        if substitution['Team_id_type'] == team_0_type:
+            print("This was an offensive sub for team 0")
+            offensive_nposs = offensive_nposs + 1
+        else:
+            print("This was a defensive sub for team 0")
 
+            defensive_nposs = defensive_nposs + 1
     if teamid == teams[1]:
         diff = score2 - score1
         opts = score2
         dpts = score1
-        offensive_nposs = offensive_nposs2
-        defensive_nposs = offensive_nposs1
+        offensive_nposs = offensive_nposs2 
+        defensive_nposs = offensive_nposs1 
+        
+        if substitution['Team_id_type'] == team_1_type:
+           print("This was an offensive sub for team 1")
+           offensive_nposs = offensive_nposs + 1
+        else:
+           print("This was a defensive sub for team 1")
+
+           defensive_nposs = defensive_nposs + 1
+
 
     suboutindex = (playersin['Person_id'] == suboutID)
   #  subinindex = (bench['Person_id'] == subinID)
@@ -267,8 +282,24 @@ def sub(playersin, bench, substitution):
     playersin.loc[playersin['Person_id'] == subinID, 'diffin'] = diff
     playersin.loc[playersin['Person_id'] == subinID, 'plusin'] = opts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
     playersin.loc[playersin['Person_id'] == subinID, 'minusin'] = dpts #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
-    playersin.loc[playersin['Person_id'] == subinID, 'off_possin'] = offensive_nposs #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
-    playersin.loc[playersin['Person_id'] == subinID, 'def_possin'] = defensive_nposs #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
+    
+    
+    if teamid == teams[1]:
+        if substitution['Team_id_type'] == team_1_type:
+           offensive_nposs = offensive_nposs - 1
+        else:
+
+           defensive_nposs = defensive_nposs - 1
+    
+    
+    if teamid == teams[0]:
+        if substitution['Team_id_type'] == team_0_type:
+           offensive_nposs = offensive_nposs - 1
+        else:
+
+           defensive_nposs = defensive_nposs - 1
+    playersin.loc[playersin['Person_id'] == subinID, 'off_possin'] = offensive_nposs  #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
+    playersin.loc[playersin['Person_id'] == subinID, 'def_possin'] = defensive_nposs  #whatever the score is at that time, in order to remove points scored when the player wasn't on the court. 
 
 
     return playersin, bench
@@ -406,7 +437,7 @@ box_score_ratings = pd.DataFrame()
 
 for game in pbp['Game_id'].unique()[0:1]: 
     
-    game  = '03ac65b9a32fde1e201bfb427f6e41e4'
+    #game  = '03ac65b9a32fde1e201bfb427f6e41e4'
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
     lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
     codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
@@ -418,6 +449,9 @@ for game in pbp['Game_id'].unique()[0:1]:
     #sort according to this, it may end up changing . 
     pbp_singlegame = pbp.loc[pbp['Game_id'] == game] 
     
+    team_0_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
+    team_1_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
+
     #translate using codes
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
@@ -466,7 +500,7 @@ for game in pbp['Game_id'].unique()[0:1]:
         
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
-            
+            break
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
             
@@ -485,3 +519,9 @@ box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRT
 box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORTG','DRTG','Net_RTG']]
 
 #outputs box scores in a nice format. 
+
+#%%
+#This says team 0 is 2
+team_0_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
+
+team_1_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
