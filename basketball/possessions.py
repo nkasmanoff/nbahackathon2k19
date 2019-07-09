@@ -82,7 +82,7 @@ def freethrowexceptions(z):
     if z['Event_Msg_Type'] == 3:
         if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]: #if final free throw
                 
-            if z['Option1'] == 1 and z['Action_Type_Description'].split(' ')[-1] != '1':
+            if z['Option1'] == 1: #and z['Action_Type_Description'].split(' ')[-1] != '1':
                     #made final free throw. 
                     return True
       
@@ -119,22 +119,42 @@ def possession_flagger(pbp_singlegame):
     
     #create new column for each type of possession change, combine at the end. 
     pbp_singlegame['Poss Change 1'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 1 else False)
-    
     pbp_singlegame['Poss Change Rebound'] = pbp_singlegame['Action_Type_Description'].apply(lambda z: True if 'Defensive' in z else False)
-    
     
     #((pbp_singlegame['Team_id'] != pbp_singlegame['Team_id'].shift(-1)) & (pbp_singlegame['Event_Msg_Type_Description'].str.contains('Rebound')))   
     pbp_singlegame['Poss Change 5'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 5 else False)
     pbp_singlegame['Poss Change 13'] = pbp_singlegame['Event_Msg_Type'].apply(lambda z: True if z == 13 else False)
-    pbp_singlegame['Poss Change 6'] = pbp_singlegame.apply(lambda z: freethrowexceptions(z),axis=1)
     
     #merge all those possession change types together. 
-    pbp_singlegame['Poss Change'] = pbp_singlegame[pbp_singlegame.columns[-5:]].sum(axis=1)
-    pbp_singlegame.drop(columns = pbp_singlegame.columns[-6:-1],inplace=True)
+
    # return pbp_singlegame
     pbp_singlegame.sort_values(['Period','PC_Time','Option1','WC_Time','Event_Num'],
             ascending=[True,False,True,True,True],inplace=True)
     
+    pbp_temp = pd.DataFrame()
+    
+    for _,g in pbp_singlegame.groupby('PC_Time',sort = False):
+       # print(g)
+        if 'Free Throw 1 of 1' in g['Action_Type_Description'].unique():
+            print("This was an and 1!")
+            g['Poss Change Rebound'] = False 
+            g['Poss Change 1'] = False
+    
+        pbp_temp = pbp_temp.append(g)
+        
+    
+    pbp_singlegame = pbp_temp.copy(deep = True)
+    pbp_singlegame['Poss Change 6'] = pbp_singlegame.apply(lambda z: freethrowexceptions(z),axis=1)
+
+    pbp_singlegame.sort_values(['Period','PC_Time','Option1','WC_Time','Event_Num'],
+            ascending=[True,False,True,True,True],inplace=True)
+    print(pbp_singlegame.columns)
+    pbp_singlegame['Poss Change'] = pbp_singlegame[pbp_singlegame.columns[-5:]].sum(axis=1)
+    print(pbp_singlegame.columns)
+
+    pbp_singlegame.drop(columns = pbp_singlegame.columns[-6:-1],inplace=True)
+    print(pbp_singlegame.columns)
+ 
     pbp_singlegame['npossessions'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Poss Change'].cumsum()
 
     team1npossessions = pbp_singlegame.loc[pbp_singlegame.iloc[:,10] == teams[0]]
@@ -428,6 +448,7 @@ def endperiod(playersin, bench, endrow):
        
     return playersin, bench
 
+
 #%%
 
 #Here I just loop over 1 game, but then replace it to a game of interest. In this case,
@@ -456,6 +477,7 @@ for game in pbp['Game_id'].unique()[0:1]:
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
+  #  pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 4]
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -507,7 +529,9 @@ for game in pbp['Game_id'].unique()[0:1]:
         
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
-            break
+           # i +=1
+            #if i ==2:
+            #    break
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
             
@@ -527,6 +551,34 @@ box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORT
 
 #outputs box scores in a nice format. 
 
+pid_dict =  {'766802a8fda500d7945950de7398c9c6':'John Wall',
+'f4a5ca938177c407a9dab5412e39498f':	'Mike Scott',
+'ae53f8ba6761b64a174051da817785bc':	'Ian Mahimi',
+'5db9c1c8184510fee8161e7fafdc9c49':	'Tomas Satoransky',
+'2ad626904c8b28cceb8e12c624a84240':	'Ty Lawson',
+'42e0d7167f04a4ff958c6442da0e6851':	'Markief Morris',
+'618f6d58ab2881152607c2a6e057bc51':	'Kelly Oubre',
+'8d2127290c94bd41b82a2938734bc750':	'Marcin Gortat',
+'c5dd5b2e3b975f0849d9b74e74125cb9':	'Bradley Beal',
+'e814950408915f43de2b079dce7c21c5':	'Demar Derozan',
+'44230324724c84f122ac62a5f0918314':	'CJ Miles',
+'5cce6ffa455e6372d9de0de400482ab6':	'Pascal Siakam',
+'4ef3dae16c436459ff05156abca5cebd':	'Delon Wright',
+'99104de2626f67c1fa2ce70504970c3f':	'Jonas Valuncunias',
+'4dd3d6a51dc97c651d3a86eec4362a1f':	'Fred Vanvleet',
+'d81d912f81fa43178f423aa89a713e96':	'OG Anunoby',
+'616281dee946056b071699476fdee9ec':	'Serge Ibaka',
+'48ec4e6c52f418d5ca4ef510ba473ea0':	'Kyle Lowry',
+'4413c19cf092bda39332d7833c90bfe6':	'Jakob Poetl'}
+
+
+
+box_score_ratings['Person_id'] = box_score_ratings['Person_id'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else 'DNP')
+
+
+#%%
+
+pd.read_html('https://stats.nba.com/players/advanced/?sort=GP&dir=-1&Season=2017-18&SeasonType=Playoffs&DateFrom=04%2F27%2F2018&DateTo=04%2F28%2F2018&TeamID=1610612761&GameSegment=First%20Half')
 #%%
 #This says team 0 is 2
 team_0_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
