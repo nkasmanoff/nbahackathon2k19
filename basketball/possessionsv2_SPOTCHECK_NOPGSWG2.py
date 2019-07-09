@@ -112,6 +112,7 @@ def possession_flagger(pbp_singlegame):
     
     
     """
+    pbp_singlegame['Event_Msg_Type'] = pbp_singlegame['Event_Msg_Type'].astype(int)
     #first, sort according to event num, have to do this for possessions, but not other stuff. 
     pbp_singlegame.sort_values(['Event_Num'],
         ascending=[True],inplace=True)
@@ -133,7 +134,7 @@ def possession_flagger(pbp_singlegame):
     
     pbp_temp = pd.DataFrame()
     
-    for _,g in pbp_singlegame.groupby('PC_Time',sort = False):
+    for _,g in pbp_singlegame.groupby(['PC_Time','Period'],sort = False):
        # print(g)
         if 'Free Throw 1 of 1' in g['Action_Type_Description'].unique():
             print("This was an and 1!")
@@ -477,7 +478,7 @@ for game in pbp['Game_id'].unique()[0:1]:
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
-   # pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
+  #  pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -516,20 +517,23 @@ for game in pbp['Game_id'].unique()[0:1]:
     for index, row in pbp_singlegame.iterrows():
 
         if (row['Event_Msg_Type'] == 8):
+            print(index)
             print("SUB!")
             
             #attempted code for dead ball exception. This will handle subs at the end of FTs, 
             #and after turnovers. 
             
             
-            
+            period = row['Period']
+            print("PERIOD", period)
             pc_time = row['PC_Time']
             
-            pc_group = pbp_singlegame.loc[pbp_singlegame['PC_Time'] == pc_time]
+            pc_group = pbp_singlegame.loc[(pbp_singlegame['PC_Time'] == pc_time) & (pbp_singlegame['Period'] == period)]
             pc_group_codes = pc_group['Event_Msg_Type'].unique()[pc_group['Event_Msg_Type'].unique() != 20]
             pc_group_codes = pc_group_codes[pc_group_codes != 6]
 
             print(pc_group_codes)
+            print(pc_group.index)
        #     if len(pc_group_codes) > 1:
             if 3 in pc_group_codes: #mid free throw
                 ft_pcs = pc_group.loc[pc_group['Event_Msg_Type'] == 3]
@@ -537,7 +541,11 @@ for game in pbp['Game_id'].unique()[0:1]:
                 print( ft_pcs['Action_Type'].mean() )
                 if ft_pcs['Action_Type'].mean() < 16:
                     print("Dead ball in effect.")
-                    dead_ball_exception = True
+                    if ft_pcs['Option1'].values[-1]  != 1:
+                        dead_ball_exception = False
+                    
+                    if ft_pcs['Option1'].values[-1] == 1:
+                        dead_ball_exception = True   
         
             elif 5 in pc_group_codes: #mid turnover
                 print("Dead ball in effect.")
@@ -555,9 +563,9 @@ for game in pbp['Game_id'].unique()[0:1]:
         
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
-            #i +=1
-            #if i ==1:
-            #    break
+            i +=1
+        #    if i ==2:
+        #        break
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
             
@@ -573,7 +581,7 @@ box_score_ratings['ORTG'] = 100 * box_score_ratings['opts'] / box_score_ratings[
 box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
 box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRTG']
 
-box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORTG','DRTG']]
+box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','ORTG','DRTG']]
 
 #outputs box scores in a nice format. 
 pid_dict = {"Klay Thompson"	:"31598ba01a3fff03ed0a87d7dea11dfe",
@@ -602,7 +610,7 @@ pid_dict = {v: k for k, v in pid_dict.items()}
 
 box_score_ratings['Person_id'] = box_score_ratings['Person_id'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else 'DNP')
 
-
+klay = box_score_ratings.loc[box_score_ratings['Person_id'] == 'Klay Thompson']
 #%%
 
 1 and 9 in [1,93]
