@@ -519,7 +519,7 @@ for game in pbp['Game_id'].unique()[-1:]:
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
-  #  pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
+ #   pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 1]
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -542,10 +542,8 @@ for game in pbp['Game_id'].unique()[-1:]:
     
     
     playersin = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 1),['Team_id','Person_id']])
-    
     bench = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 0) ,['Team_id','Person_id']])  #all players associated with a game. 
     bench = bench[~bench['Person_id'].isin(playersin['Person_id'])]
-    
     #Initialize point differential both game and players for the dataset. 
     playersin['diffin'] = playersin['pm'] = playersin['plusin'] = playersin['opts'] = 0
     playersin['minusin'] = playersin['dpts'] = playersin['offensive_nposs'] = playersin['off_possin'] =0
@@ -570,11 +568,10 @@ for game in pbp['Game_id'].unique()[-1:]:
             pc_group_codes = pc_group['Event_Msg_Type'].unique()[pc_group['Event_Msg_Type'].unique() != 20]
             pc_group_codes = pc_group_codes[pc_group_codes != 6]
 
-       #     if len(pc_group_codes) > 1:
             if 3 in pc_group_codes: #mid free throw
                 ft_pcs = pc_group.loc[pc_group['Event_Msg_Type'] == 3]
                 if ft_pcs['Action_Type'].mean() < 16:
-                    if ft_pcs['Option1'].values[-1]  != 1:
+                    if ft_pcs['Option1'].values[-1]  !=      1:
                         dead_ball_exception = False
                     
                     if ft_pcs['Option1'].values[-1] == 1:
@@ -595,7 +592,7 @@ for game in pbp['Game_id'].unique()[-1:]:
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
             i +=1
-        #    if i ==2:
+          #  if i ==2:
         #        break
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
@@ -615,7 +612,6 @@ box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRT
 box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','ORTG','DRTG']]
 
 #outputs box scores in a nice format. 
-#%%
 pid_dict =  {'766802a8fda500d7945950de7398c9c6':'John Wall',
 'f4a5ca938177c407a9dab5412e39498f':	'Mike Scott',
 'ae53f8ba6761b64a174051da817785bc':	'Ian Mahimi',
