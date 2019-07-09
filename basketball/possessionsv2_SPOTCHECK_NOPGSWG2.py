@@ -80,9 +80,9 @@ def freethrowexceptions(z):
     """
     
     if z['Event_Msg_Type'] == 3:
-        if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]: #if final free throw
-                
-            if z['Option1'] == 1: #and z['Action_Type_Description'].split(' ')[-1] != '1':
+        if z['Action_Type_Description'].split(' ')[-1] == z['Action_Type_Description'].split(' ')[-3]:
+            if z['Action_Type_Description'].split(' ')[-4] not in 'Flagrant Technical': #if final free throw
+                if z['Option1'] == 1: #and z['Action_Type_Description'].split(' ')[-1] != '1':
                     #made final free throw. 
                     return True
       
@@ -458,7 +458,7 @@ box_score_ratings = pd.DataFrame()
 
 for game in pbp['Game_id'].unique()[0:1]: 
     
-    #game  = '03ac65b9a32fde1e201bfb427f6e41e4'
+    game  = '03ac65b9a32fde1e201bfb427f6e41e4'
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
     lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
     codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
@@ -477,7 +477,7 @@ for game in pbp['Game_id'].unique()[0:1]:
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
- #   pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 4]
+   # pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -532,8 +532,12 @@ for game in pbp['Game_id'].unique()[0:1]:
             print(pc_group_codes)
        #     if len(pc_group_codes) > 1:
             if 3 in pc_group_codes: #mid free throw
-                print("Dead ball in effect.")
-                dead_ball_exception = True
+                ft_pcs = pc_group.loc[pc_group['Event_Msg_Type'] == 3]
+                print("Avg action type of FT:")
+                print( ft_pcs['Action_Type'].mean() )
+                if ft_pcs['Action_Type'].mean() < 16:
+                    print("Dead ball in effect.")
+                    dead_ball_exception = True
         
             elif 5 in pc_group_codes: #mid turnover
                 print("Dead ball in effect.")
@@ -569,29 +573,30 @@ box_score_ratings['ORTG'] = 100 * box_score_ratings['opts'] / box_score_ratings[
 box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
 box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRTG']
 
-box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','ORTG','DRTG']]
+box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORTG','DRTG']]
 
 #outputs box scores in a nice format. 
+pid_dict = {"Klay Thompson"	:"31598ba01a3fff03ed0a87d7dea11dfe",
+"Draymond Green"	:"a1591595c04d12e88e3cb427fb667618",
+"Kevin Durant":	"3626b893fc73a5cbd67d1ea48a5c7039",
+"Andre Iguodola":	"ff59dc439c6c323320bc355afe884fcb",
+"Steph Curry"	:"1a6703883f8f47bb4daf09c03be3bda2",
 
-pid_dict =  {'766802a8fda500d7945950de7398c9c6':'John Wall',
-'f4a5ca938177c407a9dab5412e39498f':	'Mike Scott',
-'ae53f8ba6761b64a174051da817785bc':	'Ian Mahimi',
-'5db9c1c8184510fee8161e7fafdc9c49':	'Tomas Satoransky',
-'2ad626904c8b28cceb8e12c624a84240':	'Ty Lawson',
-'42e0d7167f04a4ff958c6442da0e6851':	'Markief Morris',
-'618f6d58ab2881152607c2a6e057bc51':	'Kelly Oubre',
-'8d2127290c94bd41b82a2938734bc750':	'Marcin Gortat',
-'c5dd5b2e3b975f0849d9b74e74125cb9':	'Bradley Beal',
-'e814950408915f43de2b079dce7c21c5':	'Demar Derozan',
-'44230324724c84f122ac62a5f0918314':	'CJ Miles',
-'5cce6ffa455e6372d9de0de400482ab6':	'Pascal Siakam',
-'4ef3dae16c436459ff05156abca5cebd':	'Delon Wright',
-'99104de2626f67c1fa2ce70504970c3f':	'Jonas Valuncunias',
-'4dd3d6a51dc97c651d3a86eec4362a1f':	'Fred Vanvleet',
-'d81d912f81fa43178f423aa89a713e96':	'OG Anunoby',
-'616281dee946056b071699476fdee9ec':	'Serge Ibaka',
-'48ec4e6c52f418d5ca4ef510ba473ea0':	'Kyle Lowry',
-'4413c19cf092bda39332d7833c90bfe6':	'Jakob Poetl'}
+"Nick Young"	:"0b978fcfa7f2ec839c563a755e345ff8",
+"David West"	:"255fe2a8be0ed5c06dd99969ab4fea55",
+"Shaun Livingston":	"52c6125836c465f4ac5232121dacb49d",
+"Kevon Looney":	"6f6a807d57aae8f651222523dc82dc35",
+
+"Jrue Holiday": 	"ff52c317e26534ae1679da3c917e9fec",
+"Anthony Davis"	:"7dfbb5980c066844384ba7424aceae47",
+"Rajon Rondo":	"83c15c0962941640faab838a8f6f151d",
+"ETwaun Moore":	"6ad10958a1d4920dccb1daec39bebd6b",
+"Nikola Mirotic": "a3bac86ad549b2f128a62399d73d6299",
+"Ian Clark":	"90ba0d1de241290df2e124a5e02d68ef",
+"Solomon Hill":	"41c0674725d4cddab004649e9db5a3ce",
+"Cheick Diallo":	"1f568a2342e4c375873d49a15e2d4448",
+"Darius Miller":	"11beb0ae23e6425510297a31fa21881e"}
+pid_dict = {v: k for k, v in pid_dict.items()}
 
 
 
