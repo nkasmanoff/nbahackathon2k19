@@ -33,7 +33,6 @@ https://stats.nba.com/players/advanced/?sort=TEAM_ABBREVIATION&dir=1&Season=2017
 """
 #%%
 import pandas as pd
-import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -263,7 +262,7 @@ def sub(playersin, bench, substitution,dead_ball_exception=False):
         print("offensive and defensive nposs: ", offensive_nposs, defensive_nposs )
 
         if not dead_ball_exception: 
-            if substitution['Poss Arrow'] == team_0_type:
+            if substitution['Team_id_type'] == team_0_type:
                 print("This was an offensive sub for team 0")
                 offensive_nposs = offensive_nposs + 1
             else:
@@ -278,7 +277,7 @@ def sub(playersin, bench, substitution,dead_ball_exception=False):
         print("offensive and defensive nposs: ", offensive_nposs, defensive_nposs )
 
         if not dead_ball_exception: 
-            if substitution['Poss Arrow'] == team_1_type:
+            if substitution['Team_id_type'] == team_1_type:
                print("This was an offensive sub for team 1")
                offensive_nposs = offensive_nposs + 1
             else:
@@ -300,14 +299,14 @@ def sub(playersin, bench, substitution,dead_ball_exception=False):
 
     if teamid == teams[1]:
         if not dead_ball_exception:
-            if substitution['Poss Arrow'] == team_1_type:
+            if substitution['Team_id_type'] == team_1_type:
                offensive_nposs = offensive_nposs - 1
             else:
                defensive_nposs = defensive_nposs - 1
            
     if teamid == teams[0]:
         if not dead_ball_exception:
-            if substitution['Poss Arrow'] == team_0_type:
+            if substitution['Team_id_type'] == team_0_type:
                offensive_nposs = offensive_nposs - 1
             else:
                defensive_nposs = defensive_nposs - 1
@@ -472,14 +471,16 @@ for game in pbp['Game_id'].unique()[0:1]:
     
     #sort according to this, it may end up changing . 
     pbp_singlegame = pbp.loc[pbp['Game_id'] == game] 
-    team_0_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
-    team_1_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
+    ejection_df = pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 11)]# & (pbp_singlegame['Action_Type'] == 16)]
+    team_0_type =2#pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
+    team_1_type =3# pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
+
     #translate using codes
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
+  #  pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 5]
 
- #   pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 5]
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
     team_assignments = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == 0)] #starting lineup of the game
@@ -511,13 +512,8 @@ for game in pbp['Game_id'].unique()[0:1]:
     pbp_singlegame['Option1'] = pbp_singlegame.apply(lambda z: 10 if z['Event_Msg_Type'] == 9 else z['Option1'],axis=1)
 
     pbp_singlegame = possession_flagger(pbp_singlegame)
-    pbp_singlegame['Poss Arrow'] = pbp_singlegame.groupby('Poss Change',sort = False)['Poss Change'].cumsum()
-    pbp_singlegame['Poss Arrow'] = pbp_singlegame['Poss Arrow'].apply(lambda z: np.nan if z == 0 else z)
-    pbp_singlegame['Poss Arrow'].fillna(method = 'ffill',inplace=True)
-    #pbp_singlegame.dropna(inplace=True)
-    team_id_types = np.array([2,3])
-    pbp_singlegame['Poss Arrow'] = pbp_singlegame['Poss Arrow'].apply(lambda z: pbp_singlegame['Team_id_type'].values[2] if z % 2 == 0 else team_id_types[team_id_types != pbp_singlegame['Team_id_type'].values[1]][0])
-
+    
+    
     playersin = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 1),['Team_id','Person_id']])
     
     bench = pd.DataFrame(starting_lineup.loc[(starting_lineup['Period'] == 0) ,['Team_id','Person_id']])  #all players associated with a game. 
@@ -532,15 +528,12 @@ for game in pbp['Game_id'].unique()[0:1]:
     bench['defensive_nposs'] = bench['def_possin'] = 0 
     pbp_singlegame['Event_Msg_Type'] = pbp_singlegame.apply(lambda z: 4.5 if 'Defensive Rebound' in z['Action_Type_Description'] else z['Event_Msg_Type'],axis = 1)
     i = 0
-    
-    
-
     for index, row in pbp_singlegame.iterrows():
 
         if (row['Event_Msg_Type'] == 8):
             print(index)
             print("SUB!")
-             
+            
             #attempted code for dead ball exception. This will handle subs at the end of FTs, 
             #and after turnovers. 
             
@@ -548,7 +541,7 @@ for game in pbp['Game_id'].unique()[0:1]:
             period = row['Period']
             print("PERIOD", period)
             pc_time = row['PC_Time']
-             
+            
             pc_group = pbp_singlegame.loc[(pbp_singlegame['PC_Time'] == pc_time) & (pbp_singlegame['Period'] == period)]
             pc_group_codes = pc_group['Event_Msg_Type'].unique()[pc_group['Event_Msg_Type'].unique() != 20]
             pc_group_codes = pc_group_codes[pc_group_codes != 6]
@@ -559,13 +552,9 @@ for game in pbp['Game_id'].unique()[0:1]:
             if 3 in pc_group_codes: #mid free throw
                 ft_pcs = pc_group.loc[pc_group['Event_Msg_Type'] == 3]
                 ft_pcs.sort_values('Action_Type_Description',inplace=True)
-                print("Sub Poss Arrow", row['Poss Arrow']) 
-                row['Poss Arrow'] = ft_pcs['Poss Arrow'].values[0] 
-                print("Sub Poss Arrow", row['Poss Arrow']) 
-
-                print("max action type of FT:")
-                print( ft_pcs['Action_Type'].max() )
-                if ft_pcs['Action_Type'].max() < 16: # not a tech or flagrant, or clear path
+                print("Avg action type of FT:")
+                print( ft_pcs['Action_Type'].mean() )
+                if ft_pcs['Action_Type'].mean() < 16: # not a tech or flagrant, or clear path
                     
                     if ft_pcs['Option1'].values[-1]  != 1:
                         print("Dead ball not in effect, that last FT missed!")
@@ -578,16 +567,7 @@ for game in pbp['Game_id'].unique()[0:1]:
                         dead_ball_exception = True
                 else:
                     print("Flagrant or tech!" )
-                    if ft_pcs['Option1'].values[-1]  != 1:
-                        print("Dead ball not in effect, that last FT missed!")
-
-                        dead_ball_exception = True
-                    
-                    if ft_pcs['Option1'].values[-1] == 1:
-                        print("Dead ball in effect, that last FT went in")
-
-                        dead_ball_exception = False
-                    dead_ball_exception=  False #team still has posssession
+                    dead_ball_exception=  False
             elif 5 in pc_group_codes: #mid turnover
                 print("Dead ball in effect.")
                 dead_ball_exception = True
@@ -609,8 +589,8 @@ for game in pbp['Game_id'].unique()[0:1]:
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
             i +=1
-         #   if i ==2:
-              #  break
+        #    if i ==2:
+        #        break
         elif (row['Event_Msg_Type'] == 12):
             playersin, bench = startperiod(playersin, bench, row) #update lineups
             
@@ -623,7 +603,7 @@ for game in pbp['Game_id'].unique()[0:1]:
 pbp_viewer = pbp_singlegame[['Period','Team_id','Team_id_type','Event_Msg_Type_Description','Action_Type_Description','score_x','Poss Change','score_y','npossessions_x','npossessions_y']].copy()
 
 
-   
+
 pid_dict = {'Jordan Clarkson'	:'e49b2cc3f9aacd500b11a35b1c57112d',
 
 'Larry Nance'	:'942a84f05f4ab956125f68ec0963481f',
@@ -652,7 +632,7 @@ pid_dict = {'Jordan Clarkson'	:'e49b2cc3f9aacd500b11a35b1c57112d',
 "Kevin Durant":	"3626b893fc73a5cbd67d1ea48a5c7039",
 "Andre Iguodola":	"ff59dc439c6c323320bc355afe884fcb",
 "Steph Curry"	:"1a6703883f8f47bb4daf09c03be3bda2",
-"Javale McGee" : "bfef77a3e57907855444410d490e7bfd",
+
 "Nick Young"	:"0b978fcfa7f2ec839c563a755e345ff8",
 "David West"	:"255fe2a8be0ed5c06dd99969ab4fea55",
 "Shaun Livingston":	"52c6125836c465f4ac5232121dacb49d",
@@ -668,7 +648,7 @@ pid_dict = {'Jordan Clarkson'	:'e49b2cc3f9aacd500b11a35b1c57112d',
 "Cheick Diallo":	"1f568a2342e4c375873d49a15e2d4448",
 "Darius Miller":	"11beb0ae23e6425510297a31fa21881e"}
 
-#pid_dict = {v: k for k, v in pid_dict.items()}
+pid_dict = {v: k for k, v in pid_dict.items()}
 
 
 pid_dict =  {'766802a8fda500d7945950de7398c9c6':'John Wall',
@@ -695,7 +675,6 @@ pid_dict =  {'766802a8fda500d7945950de7398c9c6':'John Wall',
 '902362537ff2a39c0c0cfb82ab0adac2': 'Norm Powell',
 'c10b49616a2f4a23607dc1a8be4fde9f': 'Otto Porter'}
 
-
 box_score_ratings['ORTG'] = 100 * box_score_ratings['opts'] / box_score_ratings['offensive_nposs']
 box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
 box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRTG']
@@ -708,23 +687,3 @@ box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORT
 box_score_ratings['Person_id'] = box_score_ratings['Person_id'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
 pbp_singlegame['Person1'] = pbp_singlegame['Person1'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
 pbp_singlegame['Person2'] = pbp_singlegame['Person2'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
-#%%
-
-subs = subs[['Team_id','Team_id_type']]
-
-
-#%%
-
-np.nan %2 == 0
-#%%
-import numpy as np
-#%%
-
-test_df = pbp_singlegame.copy()
-
-test_df['Poss Arrow'] = pbp_singlegame.groupby('Poss Change')['Poss Change'].cumsum()
-test_df['Poss Arrow'] = test_df['Poss Arrow'].apply(lambda z: np.nan if z == 0 else z)
-test_df['Poss Arrow'].fillna(method = 'ffill',inplace=True)
-test_df['Poss Arrow'].fillna(0,inplace=True)
-team_id_types = np.array([2,3])
-test_df['Poss Arrow'] = test_df['Poss Arrow'].apply(lambda z: pbp_singlegame['Team_id_type'].values[1] if z % 2 == 0 else team_id_types[team_id_types != pbp_singlegame['Team_id_type'].values[1]][0])
