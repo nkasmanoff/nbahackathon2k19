@@ -1,25 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created by Sarang Yeola and Noah Kasmanoff
+Created on Fri Jun 14 13:57:47 2019
+
+Spot checking the second game in the list. IF it's right, go to game 3. 
 
 
-Calculates the offensive and defensive (and net) ratings of each player in each game from the 2018 NBA Playoffs
-
-
-
-The script below performs this by first loading in the play by play for every game in this set, along with the rosters of each team and associated starting lineup
-for each period including overtimes (if any), and then event codes.txt in order to translate the events to occur in a game to readable values such as 
-made shot, rebound, substitution, etc. 
-
-
-
-
-
-There are flaws in the play by play dataset, such as incorrect assignments to teams during substitutions, as well as ambiguous rebounding conventions to correspond to offensive and defensive boards. 
-
-First these issues are fixed during the game being tested over, and then the corresponding score, 
-
+https://www.basketball-reference.com/boxscores/pbp/201804200WAS.html#q3
+https://stats.nba.com/players/advanced/?sort=GP&dir=-1&Season=2017-18&SeasonType=Playoffs&DateFrom=04%2F20%2F2018&DateTo=04%2F20%2F2018&TeamID=1610612761
 
 """
 #%%
@@ -595,3 +583,43 @@ box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings[
 box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRTG']
 
 box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','ORTG','DRTG']]
+
+#outputs box scores in a nice format. 
+
+pid_dict =  {'766802a8fda500d7945950de7398c9c6':'John Wall',
+'f4a5ca938177c407a9dab5412e39498f':	'Mike Scott',
+'ae53f8ba6761b64a174051da817785bc':	'Ian Mahimi',
+'5db9c1c8184510fee8161e7fafdc9c49':	'Tomas Satoransky',
+'2ad626904c8b28cceb8e12c624a84240':	'Ty Lawson',
+'42e0d7167f04a4ff958c6442da0e6851':	'Markief Morris',
+'618f6d58ab2881152607c2a6e057bc51':	'Kelly Oubre',
+'8d2127290c94bd41b82a2938734bc750':	'Marcin Gortat',
+'c5dd5b2e3b975f0849d9b74e74125cb9':	'Bradley Beal',
+'e814950408915f43de2b079dce7c21c5':	'Demar Derozan',
+'44230324724c84f122ac62a5f0918314':	'CJ Miles',
+'5cce6ffa455e6372d9de0de400482ab6':	'Pascal Siakam',
+'4ef3dae16c436459ff05156abca5cebd':	'Delon Wright',
+'99104de2626f67c1fa2ce70504970c3f':	'Jonas Valuncunias',
+'4dd3d6a51dc97c651d3a86eec4362a1f':	'Fred Vanvleet',
+'d81d912f81fa43178f423aa89a713e96':	'OG Anunoby',
+'616281dee946056b071699476fdee9ec':	'Serge Ibaka',
+'48ec4e6c52f418d5ca4ef510ba473ea0':	'Kyle Lowry',
+'4413c19cf092bda39332d7833c90bfe6':	'Jakob Poetl',
+'d00d552bc4e50f63f9397a74514519ba': 'Lucas Nogueira',
+'1b37fed4823f31ccbf03515f4b9fe438':'Lorenzo Brown',
+'902362537ff2a39c0c0cfb82ab0adac2': 'Norm Powell',
+'c10b49616a2f4a23607dc1a8be4fde9f': 'Otto Porter'}
+
+
+
+box_score_ratings['Person_id'] = box_score_ratings['Person_id'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
+
+
+#%%
+
+1 and 9 in [1,93]
+#%%
+#This says team 0 is 2
+team_0_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
+
+team_1_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
