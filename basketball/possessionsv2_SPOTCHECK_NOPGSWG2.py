@@ -457,7 +457,7 @@ def endperiod(playersin, bench, endrow):
 
 box_score_ratings = pd.DataFrame()
 
-for game in pbp['Game_id'].unique()[0:1]: 
+for game in pbp['Game_id'].unique()[14:15]: 
     
     game  = '03ac65b9a32fde1e201bfb427f6e41e4'
     pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
@@ -478,7 +478,7 @@ for game in pbp['Game_id'].unique()[0:1]:
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
-  #  pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
+    pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -539,7 +539,7 @@ for game in pbp['Game_id'].unique()[0:1]:
                 ft_pcs = pc_group.loc[pc_group['Event_Msg_Type'] == 3]
                 print("Avg action type of FT:")
                 print( ft_pcs['Action_Type'].mean() )
-                if ft_pcs['Action_Type'].mean() < 16:
+                if ft_pcs['Action_Type'].max() < 16:
                     print("Dead ball in effect.")
                     if ft_pcs['Option1'].values[-1]  != 1:
                         dead_ball_exception = False
