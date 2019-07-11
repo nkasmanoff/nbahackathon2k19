@@ -464,7 +464,7 @@ def endperiod(playersin, bench, endrow):
 
 box_score_ratings = pd.DataFrame()
 i = 0
-for game in pbp['Game_id'].unique()[0:1]: 
+for game in pbp['Game_id'].unique()[0:1]:#[14:15]: 
     print("game id: ", game)
     teams = lineup.loc[lineup['Game_id'] == game]['Team_id'].unique() #locate the two teams in the game. 
     
@@ -472,14 +472,14 @@ for game in pbp['Game_id'].unique()[0:1]:
     #sort according to this, it may end up changing . 
     pbp_singlegame = pbp.loc[pbp['Game_id'] == game] 
     ejection_df = pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 11)]# & (pbp_singlegame['Action_Type'] == 16)]
-    team_0_type =2#pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
-    team_1_type =3# pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
+    team_0_type =pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
+    team_1_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
 
     #translate using codes
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
-  #  pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 5]
+   # pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
 
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -552,9 +552,9 @@ for game in pbp['Game_id'].unique()[0:1]:
             if 3 in pc_group_codes: #mid free throw
                 ft_pcs = pc_group.loc[pc_group['Event_Msg_Type'] == 3]
                 ft_pcs.sort_values('Action_Type_Description',inplace=True)
-                print("Avg action type of FT:")
-                print( ft_pcs['Action_Type'].mean() )
-                if ft_pcs['Action_Type'].mean() < 16: # not a tech or flagrant, or clear path
+                print("Max action type of FT:")
+                print( ft_pcs['Action_Type'].max() )
+                if ft_pcs['Action_Type'].max() < 16: # not a tech or flagrant, or clear path
                     
                     if ft_pcs['Option1'].values[-1]  != 1:
                         print("Dead ball not in effect, that last FT missed!")
@@ -620,7 +620,7 @@ pid_dict = {'Jordan Clarkson'	:'e49b2cc3f9aacd500b11a35b1c57112d',
 'Jordan Bell'	:'3d75035d20b173a867d4bf32c8a58f0b',
 'Nick Young'	:'0b978fcfa7f2ec839c563a755e345ff8',
 'Quinn Cook'	:'fbcda0bcb861e4726ca8871b8965ede4',
-
+'Javale McGee': 'bfef77a3e57907855444410d490e7bfd',
 'David West'	:'255fe2a8be0ed5c06dd99969ab4fea55',
 'Klay Thompson':'31598ba01a3fff03ed0a87d7dea11dfe',
 'Draymond Green'	:'a1591595c04d12e88e3cb427fb667618',
@@ -649,31 +649,6 @@ pid_dict = {'Jordan Clarkson'	:'e49b2cc3f9aacd500b11a35b1c57112d',
 "Darius Miller":	"11beb0ae23e6425510297a31fa21881e"}
 
 pid_dict = {v: k for k, v in pid_dict.items()}
-
-
-pid_dict =  {'766802a8fda500d7945950de7398c9c6':'John Wall',
-'f4a5ca938177c407a9dab5412e39498f':	'Mike Scott',
-'ae53f8ba6761b64a174051da817785bc':	'Ian Mahimi',
-'5db9c1c8184510fee8161e7fafdc9c49':	'Tomas Satoransky',
-'2ad626904c8b28cceb8e12c624a84240':	'Ty Lawson',
-'42e0d7167f04a4ff958c6442da0e6851':	'Markief Morris',
-'618f6d58ab2881152607c2a6e057bc51':	'Kelly Oubre',
-'8d2127290c94bd41b82a2938734bc750':	'Marcin Gortat',
-'c5dd5b2e3b975f0849d9b74e74125cb9':	'Bradley Beal',
-'e814950408915f43de2b079dce7c21c5':	'Demar Derozan',
-'44230324724c84f122ac62a5f0918314':	'CJ Miles',
-'5cce6ffa455e6372d9de0de400482ab6':	'Pascal Siakam',
-'4ef3dae16c436459ff05156abca5cebd':	'Delon Wright',
-'99104de2626f67c1fa2ce70504970c3f':	'Jonas Valuncunias',
-'4dd3d6a51dc97c651d3a86eec4362a1f':	'Fred Vanvleet',
-'d81d912f81fa43178f423aa89a713e96':	'OG Anunoby',
-'616281dee946056b071699476fdee9ec':	'Serge Ibaka',
-'48ec4e6c52f418d5ca4ef510ba473ea0':	'Kyle Lowry',
-'4413c19cf092bda39332d7833c90bfe6':	'Jakob Poetl',
-'d00d552bc4e50f63f9397a74514519ba': 'Lucas Nogueira',
-'1b37fed4823f31ccbf03515f4b9fe438':'Lorenzo Brown',
-'902362537ff2a39c0c0cfb82ab0adac2': 'Norm Powell',
-'c10b49616a2f4a23607dc1a8be4fde9f': 'Otto Porter'}
 
 box_score_ratings['ORTG'] = 100 * box_score_ratings['opts'] / box_score_ratings['offensive_nposs']
 box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
