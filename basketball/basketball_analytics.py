@@ -14,24 +14,26 @@ made shot, rebound, substitution, etc.
 
 
 
-
-
 There are flaws in the play by play dataset, such as incorrect assignments to teams during substitutions, as well as ambiguous rebounding conventions to correspond to offensive and defensive boards. 
 
-First these issues are fixed during the game being tested over, and then the corresponding score, 
+
+
+These issues are fixed during the game being tested over, 
+and then the corresponding score and possessoins are calculated, and player
+ratings are assigned.
+
 
 
 
 Currently spot checking game 1 of the NBA finals, and here are the associaated links
-
 https://www.basketball-reference.com/boxscores/201805310GSW.html
-
 https://stats.nba.com/players/advanced/?sort=TEAM_ABBREVIATION&dir=1&Season=2017-18&SeasonType=Playoffs&DateFrom=05%2F31%2F2018&DateTo=05%2F31%2F2018&PORound=4
-
 
 
 """
 #%%
+
+
 import pandas as pd
 import warnings
 warnings.filterwarnings("ignore")
@@ -40,6 +42,7 @@ warnings.filterwarnings("ignore")
 pbp = pd.read_csv('Basketball Analytics/Play_by_Play.txt',delimiter='\t')
 lineup = pd.read_csv('Basketball Analytics/Game_Lineup.txt',delimiter='\t')
 codes = pd.read_csv('Basketball Analytics/Event_Codes.txt',delimiter = '\t')
+
 
 def sub_correction(z,team_assignments):
     player1steam = team_assignments.loc[team_assignments['Person_id'] == z['Person1']]['Team_id'].values[0] #correctly assigned player. 
@@ -51,9 +54,11 @@ def sub_correction(z,team_assignments):
     else:
         return player2steam 
     
+    
 def technical_FT_correction(z,team_assignments):
     player1steam = team_assignments.loc[team_assignments['Person_id'] == z['Person1']]['Team_id'].values[0] #correctly assigned player. 
     return player1steam
+
 
 def rebound_correction(z,team_assignments):
     player1steam = team_assignments.loc[team_assignments['Person_id'] == z['Person1']]['Team_id']
@@ -68,6 +73,7 @@ def rebound_correction(z,team_assignments):
             return "Offensive Rebound-TEAM" #offensive
         else:
             return "Defensive Rebound-TEAM" #defensive
+
 
 def freethrowexceptions(z):
     """
@@ -137,7 +143,6 @@ def possession_flagger(pbp_singlegame):
        # print(g)
         if 'Free Throw 1 of 1' in g['Action_Type_Description'].unique():
             print("This was an and 1!")
-      #      g['Poss Change Rebound'] = False 
             g['Poss Change 1'] = False
     
         pbp_temp = pbp_temp.append(g)
@@ -456,21 +461,13 @@ def endperiod(playersin, bench, endrow):
        
     return playersin, bench
 
-
-#%%
-
-#Here I just loop over 1 game, but then replace it to a game of interest. In this case,
-# I did it for game 2 of the Warriors Pelicans Series. The first game in the loop is the 92-102 Raptors Wizards game talked about in the top most part of the code. 
-
+#%%  
 box_score_ratings = pd.DataFrame()
-i = 0
-for game in pbp['Game_id'].unique()[4:5]: 
-    print("game id: ", game)
+ 
+for game,pbp_singlegame in pbp.groupby('Game_id',sort = False):
     teams = lineup.loc[lineup['Game_id'] == game]['Team_id'].unique() #locate the two teams in the game. 
-    
-    
-    #sort according to this, it may end up changing . 
-    pbp_singlegame = pbp.loc[pbp['Game_id'] == game] 
+    print("game id: ", game)
+
     ejection_df = pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 11)]# & (pbp_singlegame['Action_Type'] == 16)]
     team_0_type =pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
     team_1_type = pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[1]]['Team_id_type'].value_counts().index[0]
@@ -479,7 +476,7 @@ for game in pbp['Game_id'].unique()[4:5]:
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
-   # pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
+    pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
    # #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
     team_assignments = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == 0)] #starting lineup of the game
@@ -607,66 +604,14 @@ for game in pbp['Game_id'].unique()[4:5]:
     box_score_ratings = box_score_ratings.append(pm)
 pbp_viewer = pbp_singlegame[['Period','Team_id','Team_id_type','Event_Msg_Type_Description','Action_Type_Description','score_x','Poss Change','score_y','npossessions_x','npossessions_y']].copy()
 
+#%%
 
+box_score_ratings['OffRtg'] = 100 * box_score_ratings['opts'] / box_score_ratings['offensive_nposs']
+box_score_ratings['DefRtg'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
+#%%
+box_score_ratings = box_score_ratings[['Game_id','Person_id','OffRtg','DefRtg']]
+box_score_ratings.rename(columns = {'Game_id':'Game_ID',"Person_id":"Player_ID"},inplace=True)
+box_score_ratings.fillna(0,inplace=True)
+#%%
 
-pid_dict = {'Jordan Clarkson'	:'e49b2cc3f9aacd500b11a35b1c57112d',
-
-'Larry Nance'	:'942a84f05f4ab956125f68ec0963481f',
-'Kyle Korver'	:'32c044aa84d75ccd78c3c9f2aeb33bd9',
-'Kevin Love'	:'95920e4bf5b6c15ba8dffbf959b38ba5',
-'George Hill'	:'722a380c9b59ef42226e8d392824dcb9',
-'JR Smith'	:'7f438c18058290903c46dfe9d71bd68a',
-'Lebron James'	:'fb64ca4b8beaf4c4c6e4575fe2f3abd7',
-'Jeff Green'	:'1dabb767e07d0aa702ee58d41c15eab1',
-'Tristan Thompson'	:'ef8b068ab7ac9d387b256404acd24cd5',
-	
-'Patrick McCaw'	:'821887f9a002be16b5f79729fae59e01',
-'Kevon Looney'	:'6f6a807d57aae8f651222523dc82dc35',
-'Jordan Bell'	:'3d75035d20b173a867d4bf32c8a58f0b',
-'Nick Young'	:'0b978fcfa7f2ec839c563a755e345ff8',
-'Quinn Cook'	:'fbcda0bcb861e4726ca8871b8965ede4',
-'Javale McGee': 'bfef77a3e57907855444410d490e7bfd',
-'David West'	:'255fe2a8be0ed5c06dd99969ab4fea55',
-'Klay Thompson':'31598ba01a3fff03ed0a87d7dea11dfe',
-'Draymond Green'	:'a1591595c04d12e88e3cb427fb667618',
-'Steph Curry'	:'1a6703883f8f47bb4daf09c03be3bda2',
-'Shaun Livingston'	:'52c6125836c465f4ac5232121dacb49d',
-'Kevin Durant'	:'3626b893fc73a5cbd67d1ea48a5c7039',
-"Klay Thompson"	:"31598ba01a3fff03ed0a87d7dea11dfe",
-"Draymond Green"	:"a1591595c04d12e88e3cb427fb667618",
-"Kevin Durant":	"3626b893fc73a5cbd67d1ea48a5c7039",
-"Andre Iguodola":	"ff59dc439c6c323320bc355afe884fcb",
-"Steph Curry"	:"1a6703883f8f47bb4daf09c03be3bda2",
-
-"Nick Young"	:"0b978fcfa7f2ec839c563a755e345ff8",
-"David West"	:"255fe2a8be0ed5c06dd99969ab4fea55",
-"Shaun Livingston":	"52c6125836c465f4ac5232121dacb49d",
-"Kevon Looney":	"6f6a807d57aae8f651222523dc82dc35",
-
-"Jrue Holiday": 	"ff52c317e26534ae1679da3c917e9fec",
-"Anthony Davis"	:"7dfbb5980c066844384ba7424aceae47",
-"Rajon Rondo":	"83c15c0962941640faab838a8f6f151d",
-"ETwaun Moore":	"6ad10958a1d4920dccb1daec39bebd6b",
-"Nikola Mirotic": "a3bac86ad549b2f128a62399d73d6299",
-"Ian Clark":	"90ba0d1de241290df2e124a5e02d68ef",
-"Solomon Hill":	"41c0674725d4cddab004649e9db5a3ce",
-"Cheick Diallo":	"1f568a2342e4c375873d49a15e2d4448",
-"Darius Miller":	"11beb0ae23e6425510297a31fa21881e",
-"Jonas Jerebko": '6fd2a56d4457a4617bc4931d6c9f3f31',
-'Joe Ingles':'f85a47779c423d73ea3b2aa48c54ff8b',
-}
-
-pid_dict = {v: k for k, v in pid_dict.items()}
-
-box_score_ratings['ORTG'] = 100 * box_score_ratings['opts'] / box_score_ratings['offensive_nposs']
-box_score_ratings['DRTG'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
-box_score_ratings['Net_RTG'] =box_score_ratings['ORTG'] - box_score_ratings['DRTG']
-box_score_ratings['Person_id'] = box_score_ratings['Person_id'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
-
-box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','ORTG','DRTG','Net_RTG']]
-
-
-
-box_score_ratings['Person_id'] = box_score_ratings['Person_id'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
-pbp_singlegame['Person1'] = pbp_singlegame['Person1'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
-pbp_singlegame['Person2'] = pbp_singlegame['Person2'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
+box_score_ratings.to_csv('FunGuys_Q1_BBALL.csv',index=False)

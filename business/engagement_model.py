@@ -4,7 +4,7 @@ exploring information ranging from the # of followers gained since the last post
 and many more. 
 
 
-
+Going to predict 10 models, and use the median as final submission
 
 """
 
@@ -27,7 +27,7 @@ model = XGBRegressor(colsample_bytree =0.5, gamma = 0.05, max_depth = 4, min_chi
 # Initialize XGB
 holdout_prediction_population = []
 prediction_run = 0
-while prediction_run  < 5:
+while prediction_run  < 10:
 	X, y = process_data('Business Analytics/training_set.csv',k_prof = 300,k_hash = 300,training=True)
 	model.fit(X, y)
 
@@ -36,14 +36,28 @@ while prediction_run  < 5:
 	holdout_predictions = model.predict(X_holdout)
 	holdout_predictions = np.array([int(round(y)) for y in holdout_predictions])
 	holdout_prediction_population.append(holdout_predictions)
+	prediction_run +=1
+	print("Prediction run ")
 
 
-for i,_ in enumerate(holdout_predictions): #iterate over each test point
-	ith_values_predictions = holdout_prediction_population[:,i]
+holdout_prediction_population = np.array(holdout_prediction_population).reshape(10,1000) #confirm right format and shape
+
+eng_pred_med = []
+eng_pred_std = []
+eng_pred_avg = []
+
+for i in range(holdout_prediction_population.shape[1]): #iterate over each test point
+	print(i)
+	eng_pred_med.append(np.median(holdout_prediction_population[:,i]))
+	eng_pred_std.append(np.std(holdout_prediction_population[:,i]))
+	eng_pred_avg.append(np.mean(holdout_prediction_population[:,i]))
+
+
 	#get the median, and make that the new prediction 
-holdout['Engagements'] = holdout_predictions
+holdout['Engagements'] = eng_pred_med
+#holdout['Engagements Std'] = eng_pred_std
+#holdout['Engagements Avg'] = eng_pred_avg
 
 
 
-
-#holdout.to_csv('holdout_set_TEAM_NAME.csv',index=False)
+holdout.to_csv('holdout_set_FunGuys.csv',index=False)

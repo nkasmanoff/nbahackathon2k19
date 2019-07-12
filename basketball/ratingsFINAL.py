@@ -480,7 +480,7 @@ def endperiod(playersin, bench, endrow):
 
 box_score_ratings = pd.DataFrame()
 i = 0
-for game in pbp['Game_id'].unique()[14:15]: 
+for game in pbp['Game_id'].unique()[1:2]: 
     print("game id: ", game)
     teams = lineup.loc[lineup['Game_id'] == game]['Team_id'].unique() #locate the two teams in the game. 
     
@@ -495,7 +495,7 @@ for game in pbp['Game_id'].unique()[14:15]:
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
 
-    pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 2]
+   # pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 5]
     
     #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
@@ -540,6 +540,8 @@ for game in pbp['Game_id'].unique()[14:15]:
     #locate the point at which the possession of the ball changes. 
     pbp_singlegame = possession_flagger(pbp_singlegame)
     
+    
+    
     #create column that correctly identifies which team has possession of the ball
     pbp_singlegame['Poss Arrow'] = pbp_singlegame.groupby(['Poss Change','Period'],sort = False)['Poss Change'].cumsum()
     pbp_singlegame['Poss Arrow'] = pbp_singlegame['Poss Arrow'].apply(lambda z: np.nan if z == 0 else z)
@@ -547,7 +549,9 @@ for game in pbp['Game_id'].unique()[14:15]:
 
     pbp_singlegame['Poss Arrow'].fillna(method = 'bfill',inplace=True)
   #  team_id_types = np.array([2,3])
-    pbp_singlegame['Poss Arrow'] = pbp_singlegame['Poss Arrow'].apply(lambda z: pbp_singlegame.dropna()['Team_id'].values[0] if z % 2 == 0 else teams[teams != pbp_singlegame['Team_id'].values[1]][0])
+    pbp_singlegame['Poss Arrow'] = pbp_singlegame['Poss Arrow'].apply(lambda z: pbp_singlegame.dropna()['Team_id'].values[0] if z % 2 != 0 else teams[teams != pbp_singlegame['Team_id'].values[1]][0])
+
+
 
     #Initialize point differential both game and players for the dataset. 
     
@@ -597,10 +601,10 @@ for game in pbp['Game_id'].unique()[14:15]:
                 
                 #so
                 #go by action type description, 
-
-                print("max action type of FT:")
-                print( ft_pcs['Action_Type'].max() )
-                if ft_pcs['Action_Type'].max() < 16: # not a tech, flagrant, or clear path in this group. 
+                
+                print("mean action type of FT:")
+                print( ft_pcs['Action_Type'].mean() )
+                if ft_pcs['Action_Type'].mean() < 16: # not a tech, flagrant, or clear path in this group. 
                     
                     if ft_pcs['Option1'].values[-1]  != 1:
                         print("Dead ball not in effect, that last FT missed!")
@@ -614,7 +618,8 @@ for game in pbp['Game_id'].unique()[14:15]:
                 else:
                     
                     #now for cases of flagrant or technicals. This is a continuation of the possession. and the ball will never be dead due to the free throws. 
-                    print("Flagrant or tech!" )                    
+                    print("Flagrant or tech!" )
+                                        
                     dead_ball_exception = False
                     
             elif 5 in pc_group_codes: #mid turnover - the ball is dead
