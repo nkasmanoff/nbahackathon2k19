@@ -3,36 +3,32 @@
 """
 Created by Sarang Yeola and Noah Kasmanoff
 
+This is the game I'm having issues with. It's a game in the Jazz Thunder playoff series, and in particular I can't seem to get the ratings correct for the first quarter of this game. 
 
-Calculates the offensive and defensive (and net) ratings of each player in each game from the 2018 NBA Playoffs
-
-
-
-The script below performs this by first loading in the play by play for every game in this set, along with the rosters of each team and associated starting lineup
-for each period including overtimes (if any), and then event codes.txt in order to translate the events to occur in a game to readable values such as 
-made shot, rebound, substitution, etc. 
+I imagine if I go onto other quarters of the game more issues will arise, but for now I'm just tryna see what went wrong here. 
 
 
-
-There are flaws in the play by play dataset, such as incorrect assignments to teams during substitutions, as well as ambiguous rebounding conventions to correspond to offensive and defensive boards. 
-
+Using the player ID dictionary we can quickly confirm who is who, and then refer to the attached sources as to where things are happening for them.
 
 
-These issues are fixed during the game being tested over, 
-and then the corresponding score and possessoins are calculated, and player
-ratings are assigned.
+So with that in mind, the biggest issues to come to note are the substition of Joe Ingles, where his O rating is 130 for the quarter, but I keep getting 144. 
+
+Additinonally Jonas Jerebko is an issue when he comes in late, it seems like it has to do with 
 
 
+After reviewing it, any Jazz player who entered this quarter is incorrect posssession wise, and I haven't a clue why. 
+
+The team ratings are correct for both, and the players who didn't sub in are correct. 
 
 
-Currently spot checking game 1 of the NBA finals, and here are the associaated links
-https://www.basketball-reference.com/boxscores/201805310GSW.html
-https://stats.nba.com/players/advanced/?sort=TEAM_ABBREVIATION&dir=1&Season=2017-18&SeasonType=Playoffs&DateFrom=05%2F31%2F2018&DateTo=05%2F31%2F2018&PORound=4
+Sources
+
+https://stats.nba.com/teams/advanced/?sort=OFF_RATING&dir=1&Season=2017-18&SeasonType=Playoffs&DateFrom=4%2F18%2F18&DateTo=4%2F18%2F18&Period=1
+https://stats.nba.com/players/advanced/?sort=GP&dir=-1&Season=2017-18&SeasonType=Playoffs&DateFrom=4%2F18%2F18&DateTo=4%2F18%2F18&TeamID=1610612762&Period=1
+https://www.basketball-reference.com/boxscores/plus-minus/201804180OKC.html
 
 
-
-
-So it's the other way around. In q3 cleveland has an extra possession, let's figure out why! Not due to assigning them a technical foul on offesnive foul/tech with JR, at least not just a cavs TO/POSS
+And the same issues pretty much occur, but with defensive rating, for the Thunder. 
 """
 #%%
 
@@ -143,7 +139,7 @@ def possession_flagger(pbp_singlegame):
     
     for _,g in pbp_singlegame.groupby(['PC_Time','Period'],sort = False):
         if 'Free Throw 1 of 1' in g['Action_Type_Description'].unique():
-            #print("This was an and 1!")
+            print("This was an and 1!")
             g['Poss Change 1'] = False
             
         if 'Technical' in g['Action_Type_Description'].unique():
@@ -178,12 +174,12 @@ def possession_flagger(pbp_singlegame):
 
     pbp_singlegame.sort_values(['Period','PC_Time','Option1','WC_Time','Event_Num'],
             ascending=[True,False,True,True,True],inplace=True)
-    #print(pbp_singlegame.columns)
+    print(pbp_singlegame.columns)
     pbp_singlegame['Poss Change'] = pbp_singlegame[pbp_singlegame.columns[-6:]].sum(axis=1)
-    #print(pbp_singlegame.columns)
+    print(pbp_singlegame.columns)
 
     pbp_singlegame.drop(columns = pbp_singlegame.columns[-7:-1],inplace=True)
-    #print(pbp_singlegame.columns)
+    print(pbp_singlegame.columns)
     pbp_singlegame.loc[pbp_singlegame['Action_Type_Description'].str.contains('Goaltending'), 'Poss Change'] = 0
 
     pbp_singlegame['npossessions'] = pbp_singlegame.groupby('Team_id', axis = 0,sort=False)['Poss Change'].cumsum()
@@ -273,7 +269,7 @@ def sub(playersin, bench, substitution,dead_ball_exception=False):
     """
 
     teamid = substitution['Team_id']
-    #print('teamid',teamid)
+    print('teamid',teamid)
     suboutID = substitution['Person1']
     subinID = substitution['Person2']
     score1 = substitution['score_x']
@@ -289,14 +285,14 @@ def sub(playersin, bench, substitution,dead_ball_exception=False):
         dpts = score2
         offensive_nposs = offensive_nposs1 
         defensive_nposs = offensive_nposs2
-        #print("offensive and defensive nposs: ", offensive_nposs, defensive_nposs )
+        print("offensive and defensive nposs: ", offensive_nposs, defensive_nposs )
 
         if not dead_ball_exception: 
             if substitution['Team_id_type'] == team_0_type:
-                #print("This was an offensive sub for team 0")
+                print("This was an offensive sub for team 0")
                 offensive_nposs = offensive_nposs + 1
             else:
-                #print("This was a defensive sub for team 0")
+                print("This was a defensive sub for team 0")
                 defensive_nposs = defensive_nposs + 1
     if teamid == teams[1]:
         diff = score2 - score1
@@ -304,17 +300,17 @@ def sub(playersin, bench, substitution,dead_ball_exception=False):
         dpts = score1
         offensive_nposs = offensive_nposs2 
         defensive_nposs = offensive_nposs1 
-        #print("offensive and defensive nposs: ", offensive_nposs, defensive_nposs )
+        print("offensive and defensive nposs: ", offensive_nposs, defensive_nposs )
 
         if not dead_ball_exception: 
             if substitution['Team_id_type'] == team_1_type:
-               #print("This was an offensive sub for team 1")
+               print("This was an offensive sub for team 1")
                offensive_nposs = offensive_nposs + 1
             else:
-               #print("This was a defensive sub for team 1")
+               print("This was a defensive sub for team 1")
                defensive_nposs = defensive_nposs + 1
 
-    #print("offensive and defensive nposs AFTER : ", offensive_nposs, defensive_nposs )
+    print("offensive and defensive nposs AFTER : ", offensive_nposs, defensive_nposs )
 
     suboutindex = (playersin['Person_id'] == suboutID)
   #  subinindex = (bench['Person_id'] == subinID)
@@ -341,15 +337,15 @@ def sub(playersin, bench, substitution,dead_ball_exception=False):
             else:
                defensive_nposs = defensive_nposs - 1
            
-    #print("Players in shape before: ", playersin.shape)     
+    print("Players in shape before: ", playersin.shape)     
     playersin = playersin.append(bench.loc[bench['Person_id'] == subinID])
-    #print("Players in shape after: ", playersin.shape)     
+    print("Players in shape after: ", playersin.shape)     
 
     bench = bench.loc[~(bench['Person_id'] == subinID)]
         
     bench = bench.append(playersin.loc[playersin['Person_id'] == suboutID]) #now bench is appended with this player and his updated stuff, and likewise removed from players in df. 
     playersin = playersin.loc[~(playersin['Person_id'] == suboutID)]
-    #print("Players in shape after again: ", playersin.shape)     
+    print("Players in shape after again: ", playersin.shape)     
 
     # set the score difference for new player
     playersin.loc[playersin['Person_id'] == subinID, 'diffin'] = diff
@@ -397,7 +393,7 @@ def startperiod(playersin, bench, startrow):
     offensive_nposs2 = startrow['npossessions_y']
     diff = score1 - score2
     period = startrow['Period']
-    #print("Period: ", period)
+    print("Period: ", period)
     # identify who is coming in at the start of the period
     periodstarters = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == period)]
     # allocate players going in and those on the bench
@@ -491,11 +487,11 @@ box_score_ratings = pd.DataFrame()
 i = 0
 #for game,pbp_singlegame in pbp.groupby('Game_id',sort = False):
     
-for game in pbp['Game_id'].unique():
+for game in pbp['Game_id'].unique()[24:25]:
     pbp_singlegame = pbp.loc[pbp['Game_id'] == game]
 
     teams = lineup.loc[lineup['Game_id'] == game]['Team_id'].unique() #locate the two teams in the game. 
-    #print("game id: ", game)
+    print("game id: ", game)
 
     ejection_df = pbp_singlegame.loc[(pbp_singlegame['Event_Msg_Type'] == 11)]# & (pbp_singlegame['Action_Type'] == 16)]
     team_0_type =pbp_singlegame.loc[pbp_singlegame['Team_id'] == teams[0]]['Team_id_type'].value_counts().index[0]
@@ -505,7 +501,7 @@ for game in pbp['Game_id'].unique():
     pbp_singlegame = pbp_singlegame.merge( codes,
         on = ['Event_Msg_Type', 'Action_Type'], how = 'left')
 
-  #  pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 1]
+    pbp_singlegame = pbp_singlegame.loc[pbp_singlegame['Period'] == 1]
    # #obtain starting lineups
     starting_lineup = lineup.loc[(lineup['Game_id'] == game) & (lineup['status'] == 'A')] #starting lineup of the game
     team_assignments = lineup.loc[(lineup['Game_id'] == game) & (lineup['Period'] == 0)] #starting lineup of the game
@@ -520,7 +516,7 @@ for game in pbp['Game_id'].unique():
         techfts =  pbp_singlegame.loc[pbp_singlegame['Action_Type_Description'].str.contains('Free Throw Technical')]
         techfts['Team_id'] = techfts.apply(lambda z: technical_FT_correction(z,team_assignments),axis=1)
         pbp_singlegame.loc[pbp_singlegame['Action_Type_Description'].str.contains('Free Throw Technical')] = techfts
-        #print('Found technical fouls!')
+        print('Found technical fouls!')
 
     except: #if no techs, good. 
         pass
@@ -562,25 +558,25 @@ for game in pbp['Game_id'].unique():
     for index, row in pbp_singlegame.iterrows():
 
         if (row['Event_Msg_Type'] == 8):
-            #print(index)
-            #print("SUB!")
+            print(index)
+            print("SUB!")
             
             #attempted code for dead ball exception. This will handle subs at the end of FTs, 
             #and after turnovers. 
             
             
             period = row['Period']
-            #print("PERIOD", period)
+            print("PERIOD", period)
             pc_time = row['PC_Time']
             
             pc_group = pbp_singlegame.loc[(pbp_singlegame['PC_Time'] == pc_time) & (pbp_singlegame['Period'] == period)]
             pc_group_codes = pc_group['Event_Msg_Type'].unique()[pc_group['Event_Msg_Type'].unique() != 20]
 
-            #print(pc_group_codes)
-            #print(pc_group.index)
+            print(pc_group_codes)
+            print(pc_group.index)
             
             if 6 in pc_group_codes and 3 in pc_group_codes:
-                #print("Foul!")
+                print("Foul!")
                 row['Team_id_type'] = pc_group.loc[pc_group['Event_Msg_Type'] == 6]['Team_id_type'].values[0]
        #     f len(pc_group_codes) > 1:
 
@@ -588,42 +584,42 @@ for game in pbp['Game_id'].unique():
             if 3 in pc_group_codes: #mid free throw
                 ft_pcs = pc_group.loc[pc_group['Event_Msg_Type'] == 3]
                 ft_pcs.sort_values('Action_Type_Description',inplace=True)
-                #print("Max action type of FT:")
-                #print( ft_pcs['Action_Type'].max() )
+                print("Max action type of FT:")
+                print( ft_pcs['Action_Type'].max() )
                 if ft_pcs['Action_Type'].max() < 16: # not a tech or flagrant, or clear path
                     
                     if ft_pcs['Option1'].values[-1]  != 1:
-                        #print("Dead ball not in effect, that last FT missed!")
+                        print("Dead ball not in effect, that last FT missed!")
 
                         dead_ball_exception = False
                     
                     if ft_pcs['Option1'].values[-1] == 1:
-                        #print("Dead ball in effect, that last FT went in")
+                        print("Dead ball in effect, that last FT went in")
                         
                         dead_ball_exception = True
                 else:
-                    #print("Flagrant or tech!" )
+                    print("Flagrant or tech!" )
                     dead_ball_exception=  False
             elif 5 in pc_group_codes: #mid turnover
-                #print("Dead ball in effect.")
+                print("Dead ball in effect.")
                 dead_ball_exception = True
                 
             elif 1 in pc_group_codes and 9 in pc_group_codes: #made shot, timeout!
-                #print("Dead ball in effect. MADE SHOT TO")
+                print("Dead ball in effect. MADE SHOT TO")
                 dead_ball_exception = True
             elif 4.5 in pc_group_codes: #defensive rebound, timeout!
-                #print("This is why this is true 4.5")
+                print("This is why this is true 4.5")
                 dead_ball_exception = True
                 
 
             else:
-                #print("Joe Ingles was false bv of this")
+                print("Joe Ingles was false bv of this")
                 dead_ball_exception = False
                 
-            #print("Dead ball? ", dead_ball_exception)
+            print("Dead ball? ", dead_ball_exception)
             playersin, bench = sub(playersin, bench, row,dead_ball_exception)  #calculate +/- of subout.
 
-          #  #print(row['Team_id'])           # if i == 10:
+          #  print(row['Team_id'])           # if i == 10:
         
         elif (row['Event_Msg_Type'] == 13):
             playersin, bench = endperiod(playersin, bench, row)  #calculate +/- at end of period,
@@ -645,13 +641,10 @@ for game in pbp['Game_id'].unique():
 box_score_ratings['OffRtg'] = 100 * box_score_ratings['opts'] / box_score_ratings['offensive_nposs']
 box_score_ratings['DefRtg'] = 100 * box_score_ratings['dpts'] / box_score_ratings['defensive_nposs']
 
-box_score_ratings = box_score_ratings[['Game_id','Person_id','OffRtg','DefRtg']]
+box_score_ratings = box_score_ratings[['Game_id','Team_id','Person_id','pm','OffRtg','DefRtg']]
 box_score_ratings.rename(columns = {'Game_id':'Game_ID',"Person_id":"Player_ID"},inplace=True)
 box_score_ratings.fillna(0,inplace=True)
-#%%
-box_score_ratings.to_csv('TrustTheBlackBox_Q1_BBALL.csv',index=False)
 
-#%%
 
 pid_dict2122= {'36fdadf436b164ee29174c8e1fde7271':"Rodney Hood",
 '942a84f05f4ab956125f68ec0963481f':"Larry Nance",
@@ -707,7 +700,7 @@ box_score_ratings['Player_ID'] = box_score_ratings['Player_ID'].apply(lambda z: 
 pbp_singlegame['Person1'] = pbp_singlegame['Person1'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
 pbp_singlegame['Person2'] = pbp_singlegame['Person2'].apply(lambda z: pid_dict[z] if z in pid_dict.keys() else z)
 
-box_score_ratings.to_csv('FunGuys_Q1_BBALL.csv',index=False)
+
 #team x rating
 #%%
 100 *pbp_singlegame.tail(n=1)['score_x']/pbp_singlegame.tail(n=1)['npossessions_x']
