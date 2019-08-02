@@ -66,7 +66,7 @@ def cluster_profiles(instas,k):
 
     instas['Clusters'] = instas['Description'].str.lower().apply(lambda z: apply_profile_clusters_to_training(z,profiles))
 
-    clusters = pd.DataFrame(instas.Clusters.tolist(), columns=['profClus'+str(x) for x in np.arange(profiles.shape[1] - 1)])
+    clusters = pd.DataFrame(instas.Clusters.tolist(), columns=['Profile Cluster # '+str(x) for x in np.arange(profiles.shape[1] - 1)])
     instas = instas.merge(clusters,left_index=True,right_index=True).drop('Clusters',axis=1)
 
     return instas
@@ -122,7 +122,7 @@ def cluster_hashtags(instas,k):
 
 
     instas['Clusters'] = instas['Description'].str.lower().apply(lambda z: apply_hashtag_clusters_to_training(z,hashtags))
-    clusters = pd.DataFrame(instas.Clusters.tolist(), columns=['hashClus'+str(x) for x in np.arange(hashtags.shape[1] - 1)])
+    clusters = pd.DataFrame(instas.Clusters.tolist(), columns=['Hashtag Cluster # '+str(x) for x in np.arange(hashtags.shape[1] - 1)])
     instas = instas.merge(clusters,left_index=True,right_index=True).drop('Clusters',axis=1)
     return instas
 
@@ -194,9 +194,9 @@ def process_data(file,training=False,k_prof = 11, k_hash = 8 ):
     instas.fillna('',inplace=True)
     
     instas['Description_Len'] = instas['Description'].apply(len)
-    instas['num@s'] = instas['Description'].apply(lambda z: z.count('@'))
+    instas['# of Accounts Tagged'] = instas['Description'].apply(lambda z: z.count('@'))
     instas['num#s'] = instas['Description'].apply(lambda z: z.count('#'))
-    instas['num?s'] = instas['Description'].apply(lambda z: z.count('?')) 
+    instas['# of Emojis Used'] = instas['Description'].apply(lambda z: z.count('?')) 
     instas['numwords'] = instas['Description'].apply(lambda z: z.count(' ')) 
     import re
     instas['numCAPs'] = instas['Description'].apply(lambda z: len(re.findall(r'[A-Z]',z)))
